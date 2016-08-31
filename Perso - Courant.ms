@@ -1,3 +1,29 @@
+rollout grin "Grin Control"
+(
+slider happy "Happy" orient:#vertical across:5
+slider sad "Sad" orient:#vertical
+slider oo "OO" orient:#vertical
+slider ee "EE" orient:#vertical
+slider oh "OH" orient:#vertical
+/*
+on happy changed val do object.xform1.center = ...
+on sad changed val do object.xform2.gizmo.rotation = ...
+...
+*/
+)
+theNewFloater = newRolloutFloater "Grinning" 300 220
+addRollout grin theNewFloater
+
+
+
+
+
+
+
+
+
+
+
 
 	---- Prefs de Etage ---------------------------------------------------------------------------------------------
 	rollout rollEtage "Etage" width:775 height:376
@@ -20,8 +46,8 @@
 
 		checkbutton 'btn_details' "+" pos:[735,55] width:17 height:17 align:#left
 	
-	subrollout 		'sousRoll' 					"Paramêtres" 		pos:[8,89] 		width:745 	height:255 	align:#left
-	button				'btn_defauts' 			"Défauts" 				pos:[9,350]		width:86 		height:20 		align:#left
+		subrollout 		'sousRoll' 					"Paramêtres" 		pos:[8,89] 		width:745 	height:255 	align:#left
+		button				'btn_defauts' 			"Défauts" 				pos:[9,350]		width:86 		height:20 		align:#left
 
 	)
 	/* 

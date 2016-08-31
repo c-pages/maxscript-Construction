@@ -34,7 +34,7 @@ rollout rollConstruction "Construction" 	width:765 	height:80
 	------------------------------------------------------------
 	
 	---- Les structures ----
-	local const, outils, matID
+	local const, outils, matID, prefs
 	
 	---- L'interface ----
 	local boutons
@@ -258,49 +258,99 @@ rollout rollConstruction "Construction" 	width:765 	height:80
 	---- la structure des preferences	---------------------------------------------------------------------------------------------
 	struct prefsStruct (
 		
-		---- Membres	----
+		---- le fichier des preferences	----
+		fichier 					= "$userScripts\construction.ini",
+		
+		
+		---- les preferences	----
 		ep_mur					=	30,	---- Epaisseur du mur.
 		
-		ht_etage 				= 250, 	---- Hauteur d'un étage.
-		ep_dalle				=	20,	---- Epaisseur des dalles.
+		ht_etage 				= 255, 	---- Hauteur d'un étage.
+		ep_dalle				=	25,	---- Epaisseur des dalles.
 		
 		ht_accrotere 			= 50, 	---- Hauteur de l'accrotere.
 		ep_couvertine		=	5,		---- Epaisseur de la couvertine.
 		ht_couvertine		=	5,		---- Hauteur de la couvertine.
 		
 		ht_allege				= 90,	---- Hauteur de l'allège
+		nbr_fenetre			= 0,		---- Nombre de fenetre à creer ( 0: remplis la face fenetres )
 		ht_fenetre				= 210,	---- Hauteur de la fenetre
 		larg_fenetre			= 100,	---- Largeur de la fenetre
-		larg_entreFenetre	= 150,	---- Largeur du lpen entre 2 fenetres
+		esp_fenetre			= 150,	---- Largeur du plein entre 2 fenetres
+		align_fenetre			= 1,		---- L'alignement des fenetre dans la face
+		decal_fenetre			= 50,	---- Le décalage de la premiere fenetre pa rapport au bord de la face.
+		
+		
+		/* 
+		spn_ht_allege.value 				= prefs.ht_allege
+		spn_larg_fenetre.value 			= prefs.larg_fenetre
+		spn_ht_fenetre.value 			= prefs.ht_fenetre
+		spn_nbr_fenetre.value 			= prefs.nbr_fenetre
+		rdo_align_fenetre.value 			= prefs.align_fenetre
+		spn_esp_fenetre.value 			= prefs.esp_fenetre
+		spn_decal_fenetre.value 		= prefs.decal_fenetre */
+		
 		
 		--- Fontions ----
-		fn sauvegarder = (
+		fn sauvegarder 	= (
 			
+			setINISetting   fichier		"prefs"   "ep_mur"  				( ep_mur as string )
+			
+			setINISetting   fichier		"prefs"   "ht_etage"  				( ht_etage as string )
+			setINISetting   fichier		"prefs"   "ep_dalle"  				( ep_dalle as string )
+			
+			setINISetting   fichier		"prefs"   "ht_accrotere"  			( ht_accrotere as string )
+			setINISetting   fichier		"prefs"   "ep_couvertine"		( ep_couvertine as string )
+			setINISetting   fichier		"prefs"   "ht_couvertine"  		( ht_couvertine as string )
+			
+			setINISetting   fichier		"prefs"   "ht_allege"  				( ht_allege as string )
+			setINISetting   fichier		"prefs"   "nbr_fenetre"  			( nbr_fenetre as string )
+			setINISetting   fichier		"prefs"   "ht_fenetre"  			( ht_fenetre as string )
+			setINISetting   fichier		"prefs"   "larg_fenetre"  			( larg_fenetre as string )
+			setINISetting   fichier		"prefs"   "esp_fenetre"			( esp_fenetre as string )
+			setINISetting   fichier		"prefs"   "align_fenetre"			( align_fenetre as string )
+			setINISetting   fichier		"prefs"   "decal_fenetre"			( decal_fenetre as string )
+			
+		),
+		
+		fn charger 	= (
+			
+			ep_mur 				= 	( getINISetting   fichier		"prefs"   "ep_mur"  			as float )		
+			
+			ht_etage				= 	( getINISetting   fichier	"prefs"   "ht_etage"  				as float )
+			ep_dalle				= 	( getINISetting   fichier	"prefs"   "ep_dalle"  				as float )
+			
+			ht_accrotere 			=	( getINISetting   fichier	"prefs"   "ht_accrotere"  			as float )
+			ep_couvertine		=	( getINISetting   fichier	"prefs"   "ep_couvertine"		as float )
+			ht_couvertine		=	( getINISetting   fichier	"prefs"   "ht_couvertine"  		as float )
+			
+			ht_allege				= 	( getINISetting   fichier	"prefs"   "ht_allege"  				as float )
+			nbr_fenetre			= 	( getINISetting   fichier	"prefs"   "nbr_fenetre"  			as float )
+			ht_fenetre				= 	( getINISetting   fichier	"prefs"   "ht_fenetre"  			as float )
+			larg_fenetre			=	( getINISetting   fichier	"prefs"   "larg_fenetre"  			as float )
+			esp_fenetre			=	( getINISetting   fichier	"prefs"   "esp_fenetre"			as float )
+			align_fenetre			=	( getINISetting   fichier	"prefs"   "align_fenetre"			as integer )
+			decal_fenetre			=	( getINISetting   fichier	"prefs"   "decal_fenetre"			as float )
+			
+		),
+		
+		fn resetFichier = (
+			deleteFile  fichier
+		),
+		
+		---- evenements ----
+		on create do (
+			if not doesFileExist fichier
+					then	sauvegarder ()
+					else 	charger ()
 		)
+		
 	)	-- fin struct prefs	---
 	
 	
 	
 	---- la structure de construction	---------------------------------------------------------------------------------------------
 	struct constructionStruct (
-		
-		---- Membres	----
-		ep_mur					=	30,	---- Epaisseur du mur.
-		
-		ht_etage 				= 250, 	---- Hauteur d'un étage.
-		ep_dalle				=	20,	---- Epaisseur des dalles.
-		
-		ht_accrotere 			= 50, 	---- Hauteur de l'accrotere.
-		ep_couvertine		=	5,		---- Epaisseur de la couvertine.
-		ht_couvertine		=	5,		---- Hauteur de la couvertine.
-		
-		ht_allege				= 90,	---- Hauteur de l'allège
-		ht_fenetre				= 210,	---- Hauteur de la fenetre
-		larg_fenetre			= 100,	---- Largeur de la fenetre
-		larg_entreFenetre	= 150,	---- Largeur du lpen entre 2 fenetres
-		
-		
-		
 		
 		--- Fontions ----
 		fn etage = (
@@ -311,11 +361,11 @@ rollout rollConstruction "Construction" 	width:765 	height:80
 					
 					---- extrusion de la hauteur sous plafond----
 					_node.extrusionType = 0
-					_node.faceExtrudeHeight = ht_etage
+					_node.faceExtrudeHeight = prefs.ht_etage
 					_node.EditablePoly.buttonOp #Extrude
 					
 					---- extrusion de l'épaisseur de la dalle----
-					_node.faceExtrudeHeight = ep_dalle
+					_node.faceExtrudeHeight = prefs.ep_dalle
 					_node.EditablePoly.buttonOp #Extrude
 					
 				) -- fin redraw off
@@ -334,13 +384,13 @@ rollout rollConstruction "Construction" 	width:765 	height:80
 					
 					---- Inset de l'épaisseur du mur ----
 					_node.insetType = 0
-					_node.insetAmount = ep_mur
+					_node.insetAmount = prefs.ep_mur
 					_node.EditablePoly.buttonOp 		#Inset
 					
 					---- Extusion de l'accrotere	----
 					outils.etendreSelecFaces 		_node 	( ( polyop.getFaceSelection  _node ) as array )
 					_node.extrusionType 				= 0
-					_node.faceExtrudeHeight 		= ht_accrotere
+					_node.faceExtrudeHeight 		= prefs.ht_accrotere
 					_node.EditablePoly.buttonOp	#Extrude
 					
 					---- Copie des faces pour creer la base de la couvertine 	----
@@ -351,7 +401,7 @@ rollout rollConstruction "Construction" 	width:765 	height:80
 					_node.EditablePoly.setMaterialIndex 		matID.couvertine	 	1
 					
 					---- Epaisseur de la couvertine 	----
-					_node.faceExtrudeHeight = ht_couvertine
+					_node.faceExtrudeHeight = prefs.ht_couvertine
 					_node.EditablePoly.buttonOp #Extrude
 					
 					-- listes des trucs a supprimer	(points et arretes en trop )	----
@@ -360,7 +410,7 @@ rollout rollConstruction "Construction" 	width:765 	height:80
 					
 					---- Extrusion du débord de la couvertine 	----
 					outils.etendreSelecFaces		_node		( ( polyop.getFaceSelection  _node ) as array )
-					_node.faceExtrudeHeight = ht_couvertine
+					_node.faceExtrudeHeight = prefs.ht_couvertine
 					_node.extrusionType = 1
 					_node.EditablePoly.buttonOp #Extrude
 					
@@ -434,20 +484,21 @@ rollout rollConstruction "Construction" 	width:765 	height:80
 						--- vérification de la validité de la face ----
 						hauteurFace 		= outils.hauteurFace 	_node	face
 						largeurFace		= outils.largeurFace	_node	face
-						hauteurFaceMin	= ht_fenetre
-						largeurFaceMin	= larg_Fenetre + ep_mur
+						hauteurFaceMin	= prefs.ht_fenetre
+						largeurFaceMin	= prefs.larg_Fenetre + prefs.ep_mur
 						
 						if hauteurFace >= hauteurFaceMin and largeurFace >= largeurFaceMin	do (
+							
 							
 							---- Découpe de l'allège	----
 							Zmin = outils.ZMinFace 		_node 	#(face)
 							polyop.setFaceSelection  	_node 	#(face)
-							_node.slice [0,0,1] [0,0,Zmin + ht_allege ] 	flaggedFacesOnly:true
+							_node.slice [0,0,1] [0,0,Zmin + prefs.ht_allege ] 	flaggedFacesOnly:true
 							append		_arretesAlleges	(  _node.GetNumEdges	() )
 							append 	_facesBandeaux	(  _node.GetNumFaces	() )
 							
 							---- Découpe du lintot	----
-							_node.slice [0,0,1] [0,0,Zmin + ht_fenetre ] 	flaggedFacesOnly:true
+							_node.slice [0,0,1] [0,0,Zmin + prefs.ht_fenetre ] 	flaggedFacesOnly:true
 							append		_arretesLintots	(  _node.GetNumEdges	() )
 							
 							-- Selection de la face à découper --
@@ -459,13 +510,13 @@ rollout rollConstruction "Construction" 	width:765 	height:80
 							centreFace 		= 		outils.centreDeLaFace		_node	face
 							normalFace 		= 	(	polyop.getFaceNormal  	_node 	face ) * rotateZMatrix 90 
 							largeurFace 		= outils.largeurFace 		_node 	face
-							origine				= centreFace + normalFace * ( -largeurFace/2 + ep_mur )
-							transl_fenetre	= normalFace * larg_Fenetre
-							transl_plein		= normalFace * larg_entreFenetre
+							origine				= centreFace + normalFace * ( -largeurFace/2 + prefs.ep_mur )
+							transl_fenetre	= normalFace * prefs.larg_Fenetre
+							transl_plein		= normalFace * prefs.esp_fenetre
 							
 							translation			= [0,0,0]
 							
-							while  length ( translation + transl_fenetre  + normalFace *	ep_mur ) < largeurFace do (
+							while  length ( translation + transl_fenetre  + normalFace *	prefs.ep_mur ) < largeurFace do (
 								
 								---- Slice debut fenetre ----
 								_node.slice 	normalFace 	( origine + translation ) 	flaggedFacesOnly:true
@@ -501,9 +552,14 @@ rollout rollConstruction "Construction" 	width:765 	height:80
 					
 					---- Extrusion epaisseur du mur ----
 					polyop.setFaceSelection  _node		_facesBais
-					_node.faceExtrudeHeight 	= -ep_mur
+					_node.faceExtrudeHeight 	= -prefs.ep_mur
 					_node.extrusionType 			= 1
 					_node.EditablePoly.buttonOp #Extrude
+					
+					---- le nom de la selection des faces ----
+					if _node.faces["const_baies"] == undefined  
+							then		_node.faces["const_baies"] = 	( polyop.getFaceSelection  _node ) as array
+							else		_node.faces["const_baies"] += 	( polyop.getFaceSelection  _node ) as array
 					
 					---- MatID verre	----
 					_node.EditablePoly.setMaterialIndex 		matID.verre	 	1
@@ -546,7 +602,7 @@ rollout rollConstruction "Construction" 	width:765 	height:80
 					
 					---- extrusion  tablette	----
 					_node.extrusionType 				= 0
-					_node.faceExtrudeHeight 		= ht_couvertine
+					_node.faceExtrudeHeight 		= prefs.ht_couvertine
 					_node.EditablePoly.buttonOp 	#Extrude
 					
 					-- listes des trucs a supprimer	(points et arretes en trop )	----
@@ -555,7 +611,7 @@ rollout rollConstruction "Construction" 	width:765 	height:80
 					
 					---- Extrusion du débord de la couvertine 	----
 					outils.etendreSelecFaces		_node		( ( polyop.getFaceSelection  _node ) as array )
-					_node.faceExtrudeHeight = ht_couvertine
+					_node.faceExtrudeHeight = prefs.ht_couvertine
 					_node.extrusionType = 1
 					_node.EditablePoly.buttonOp #Extrude
 					
@@ -626,61 +682,273 @@ rollout rollConstruction "Construction" 	width:765 	height:80
 	
 	---- Rollout de Etage ---------------------------------------------------------------------------------------------
 	rollout rollEtage "Etage" width:743 height:99 	(
+		
+		---- UI ----
 		label 		'lbl_htSsPlaf' 	"Hauteur sous plaf. :" 	pos:[8,9] 		width:100 height:19 align:#left
-		spinner 	'spn_htSsPlaf' 	"" 								pos:[114,9] 	width:100 height:16 range:[250,10000,0] type:#worldunits align:#left		
+		spinner 	'spn_htSsPlaf' 	"" 								pos:[114,9] 	width:100 height:16 range:[0,10000,0] type:#worldunits align:#left		
 		label 		'lbl_epDalle' 		"Ep. dalle :" 					pos:[264,9] 	width:60 	height:19 align:#left
-		spinner	'spn_epDalle' 	"" 								pos:[324,9] 	width:100 height:16 range:[20,10000,0] type:#worldunits align:#left
+		spinner	'spn_epDalle' 	"" 								pos:[324,9] 	width:100 height:16 range:[0,10000,0] type:#worldunits align:#left
+		
+		---- fonctions ----
+		fn actualiser = (
+			spn_htSsPlaf.value 	= prefs.ht_etage
+			spn_epDalle.value 		= prefs.ep_dalle			
+		)
+		
+		---- evenements ----
+		on rollEtage open do actualiser ()
+		on spn_htSsPlaf changed val do (
+			prefs.ht_etage	=	val
+			prefs.sauvegarder()
+		)
+		on spn_epDalle changed val do (
+			prefs.ep_dalle	=	val
+			prefs.sauvegarder()
+		)
+		
 	)	-- fin rollout etage --
 	
 	
 	---- Rollout de Accrotère ---------------------------------------------------------------------------------------------
 	rollout rollAccrotere "Accrotère" width:743 height:99 	(
+		
+		---- UI ----
+		label 		'lbl_ep_mur' 				"Epaisseur mur :" 			pos:[8,9] 			width:100 height:19 align:#left
+		spinner 	'spn_ep_mur' 			"" 								pos:[114,9] 		width:100 height:16 range:[0,10000,0] type:#worldunits align:#left		
+		label 		'lbl_ht_accrotere' 		"Hauteur accrotère :" 	pos:[264,9] 		width:60 	height:19 align:#left
+		spinner	'spn_ht_accrotere' 	"" 								pos:[324,9] 		width:100 height:16 range:[0,10000,0] type:#worldunits align:#left
+		
+		label 		'lbl_ep_couvertine' 	"Epaisseur couvertine :"	pos:[8,29] 		width:100 height:19 align:#left
+		spinner 	'spn_ep_couvertine' 	"" 								pos:[114,29] 	width:100 height:16 range:[0,10000,0] type:#worldunits align:#left		
+		label 		'lbl_ht_couvertine' 	"Hauteur couvertine :" 	pos:[264,29] 	width:60 	height:19 align:#left
+		spinner	'spn_ht_couvertine' 	"" 								pos:[324,29] 	width:100 height:16 range:[0,10000,0] type:#worldunits align:#left
+		
+		
+		---- fonctions ----
+		fn actualiser = (
+			spn_ep_mur.value 			= prefs.ep_mur
+			spn_ht_accrotere.value 		= prefs.ht_accrotere		
+			spn_ep_couvertine.value 	= prefs.ep_couvertine
+			spn_ht_couvertine.value 	= prefs.ht_couvertine		
+		)
+		
+		---- evenements ----
+		on rollAccrotere open do actualiser ()
+		
+		on  spn_ep_mur			changed	val 	do (	
+			prefs.ep_mur	=	val
+			prefs.sauvegarder()		
+		)
+		on  spn_ht_accrotere			changed	val 	do (	
+			prefs.ht_accrotere	=	val
+			prefs.sauvegarder()		
+		)
+		on  spn_ep_couvertine			changed	val 	do (	
+			prefs.ep_couvertine	=	val
+			prefs.sauvegarder()		
+		)
+		on  spn_ht_couvertine			changed	val 	do (	
+			prefs.ht_couvertine	=	val
+			prefs.sauvegarder()		
+		)
+		
 	)	-- fin rollout Accrotère --
+	
+	
+	---- Rollout deux pans  ---------------------------------------------------------------------------------------------
+	rollout rollDeuxPans "2 pans" width:743 height:99 	(
+		
+		---- UI ----
+		label 		'lbl_htSsPlaf' 	"Hauteur sous plaf. :" 	pos:[8,9] 		width:100 height:19 align:#left
+		spinner 	'spn_htSsPlaf' 	"" 								pos:[114,9] 	width:100 height:16 range:[0,10000,0] type:#worldunits align:#left		
+		label 		'lbl_epDalle' 		"Ep. dalle :" 					pos:[264,9] 	width:60 	height:19 align:#left
+		spinner	'spn_epDalle' 	"" 								pos:[324,9] 	width:100 height:16 range:[0,10000,0] type:#worldunits align:#left
+		
+		---- fonctions ----
+		fn actualiser = (
+			spn_htSsPlaf.value 	= prefs.ht_etage
+			spn_epDalle.value 		= prefs.ep_dalle			
+		)
+		
+		---- evenements ----
+		on rollEtage open do actualiser ()
+		on spn_htSsPlaf changed val do (
+			prefs.ht_etage	=	val
+			prefs.sauvegarder()
+		)
+		on spn_epDalle changed val do (
+			prefs.ep_dalle	=	val
+			prefs.sauvegarder()
+		)
+		
+	)	-- fin Rollout deux pans   --
+	
+	
+	---- Rollout 4 pans  ---------------------------------------------------------------------------------------------
+	rollout rollQuatrePans "4 pans" width:743 height:99 	(
+		
+		---- UI ----
+		label 		'lbl_htSsPlaf' 	"Hauteur sous plaf. :" 	pos:[8,9] 		width:100 height:19 align:#left
+		spinner 	'spn_htSsPlaf' 	"" 								pos:[114,9] 	width:100 height:16 range:[0,10000,0] type:#worldunits align:#left		
+		label 		'lbl_epDalle' 		"Ep. dalle :" 					pos:[264,9] 	width:60 	height:19 align:#left
+		spinner	'spn_epDalle' 	"" 								pos:[324,9] 	width:100 height:16 range:[0,10000,0] type:#worldunits align:#left
+		
+		---- fonctions ----
+		fn actualiser = (
+			spn_htSsPlaf.value 	= prefs.ht_etage
+			spn_epDalle.value 		= prefs.ep_dalle			
+		)
+		
+		---- evenements ----
+		on rollEtage open do actualiser ()
+		on spn_htSsPlaf changed val do (
+			prefs.ht_etage	=	val
+			prefs.sauvegarder()
+		)
+		on spn_epDalle changed val do (
+			prefs.ep_dalle	=	val
+			prefs.sauvegarder()
+		)
+		
+	)	-- fin Rollout 4 pans   --
 	
 	
 	---- Rollout de Baies ---------------------------------------------------------------------------------------------
 	rollout rollBaies "Baies" width:743 height:99 	(
 -- 		button 'btn_appliquer' "Appliquer" pos:[624,9] width:108 height:82 align:#left
 		
-		label 'lbl_allege' "Allège :" pos:[8,7] width:100 height:19 align:#left
-		spinner 'spn_allege' "" pos:[114,9] width:100 height:16 range:[90,10000,0] type:#worldunits align:#left		
+		label 				'lbl_allege' 				"Allège :" 		pos:[8,7] 			width:100 height:19 align:#left
+		spinner 			'spn_ht_allege' 			"" 				pos:[114,9] 		width:100 height:16 range:[0,10000,0] type:#worldunits align:#left		
 		
-		label 'lbl_fen_Larg' "Largeur :" pos:[264,29] width:60 height:19 align:#left
-		spinner 'spn_fen_Larg' "" pos:[324,31] width:100 height:16 range:[100,10000,0] type:#worldunits align:#left
-		label 'lbl_fen_hauteur' "Hauteur :" pos:[449,29] width:60 height:19 align:#left
-		spinner 'spn_fen_hauteur' "" pos:[509,31] width:100 height:16 range:[90,10000,0] type:#worldunits align:#left
-		label 'lbl_fen_nombre' "Fenetres :" pos:[9,29] width:100 height:19 align:#left
-		spinner 'spn_fen_nombre' "" pos:[114,30] width:100 height:16 range:[0,10000,0] type:#integer scale:1 align:#left
-		radiobuttons 'rdo_align' "Alignement" pos:[9,56] width:235 height:30 labels:#("Gauche", "Centre", "Droite") default:1 columns:3 align:#left
-		label 'lbl_espacement' "Espacmt. :" pos:[449,70] width:60 height:19 align:#left
-		spinner 'spn_espacement' "" pos:[509,71] width:100 height:16 range:[100,10000,0] type:#worldunits align:#left
-		label 'lbl_decalage' "Décalage :" pos:[264,70] width:60 height:19 align:#left
-		spinner 'spn_decalage' "" pos:[324,71] width:100 height:16 range:[0,10000,0] type:#worldunits align:#left
+		label 				'lbl_larg_fenetre' 		"Largeur :" 	pos:[264,29] 	width:60 height:19 align:#left
+		spinner 			'spn_larg_fenetre' 		"" 				pos:[324,31] 	width:100 height:16 range:[0,10000,0] type:#worldunits align:#left
+		label				'lbl_ht_fenetre' 			"Hauteur :" 	pos:[449,29] 	width:60 height:19 align:#left
+		spinner			'spn_ht_fenetre' 		"" 				pos:[509,31] 	width:100 height:16 range:[0,10000,0] type:#worldunits align:#left
+		label 				'lbl_nbr_fenetre' 		"Fenetres :" 	pos:[9,29] 		width:100 height:19 align:#left
+		spinner 			'spn_nbr_fenetre' 		"" 				pos:[114,30] 	width:100 height:16 range:[0,10000,0] type:#integer scale:1 align:#left
+		radiobuttons 	'rdo_align_fenetre'		"Alignement" pos:[9,56] 		width:235 height:30 labels:#("Gauche", "Centre", "Droite") default:1 columns:3 align:#left
+		label 				'lbl_esp_fenetre' 		"Espacmt. :" 	pos:[449,70] 	width:60 height:19 align:#left
+		spinner 			'spn_esp_fenetre'		"" 				pos:[509,71] 	width:100 height:16 range:[0,10000,0] type:#worldunits align:#left
+		label 				'lbl_decal_fenetre' 		"Décalage :" 	pos:[264,70] 	width:60 height:19 align:#left
+		spinner 			'spn_decal_fenetre' 	"" 				pos:[324,71] 	width:100 height:16 range:[0,10000,0] type:#worldunits align:#left
 	
 		
-		---- evenements ----
-		on rollBaies open do ( 
+		---- fonctions ----
+		fn actualiser = (
+			spn_ht_allege.value 				= prefs.ht_allege
+			spn_larg_fenetre.value 			= prefs.larg_fenetre
+			spn_ht_fenetre.value 			= prefs.ht_fenetre
+			spn_nbr_fenetre.value 			= prefs.nbr_fenetre
+			rdo_align_fenetre.state 			= prefs.align_fenetre
+			spn_esp_fenetre.value 			= prefs.esp_fenetre
+			spn_decal_fenetre.value 		= prefs.decal_fenetre
 			
-			/* ---- Membres	----
-			ep_mur					=	30,	---- Epaisseur du mur.
-			ht_etage 				= 270, 	---- Hauteur d'un étage.
-			ht_accrotere 			= 50, 	---- Hauteur de l'accrotere.
-			ep_couvertine		=	5,		---- Epaisseur de la couvertine.
-			ht_couvertine		=	5,		---- Hauteur de la couvertine.
+			---- on gere les activité des boutons	----
+			lbl_decal_fenetre.enabled 		= ( rdo_align_fenetre.state != 2 )
+			spn_decal_fenetre.enabled 	= ( rdo_align_fenetre.state != 2 )
 			
-			ht_allege				= 90,	---- Hauteur de l'allège
-			ht_fenetre				= 210,	---- Hauteur de la fenetre
-			larg_fenetre			= 100,	---- Largeur de la fenetre
-			larg_entreFenetre	= 150,	---- Largeur du lpen entre 2 fenetres
- */		)
-		
--- 		on  btn_appliquer 	pressed 			do const.baies ()
-		on  rdo_align			changed	arg 	do (			
-			lbl_decalage.enabled 		= ( arg != 2 )
-			spn_decalage.enabled 	= ( arg != 2 )
 		)
+		
+		
+		---- evenements ----
+		on rollBaies open do actualiser ()
+		
+		on  spn_ht_allege			changed	val 	do (	
+			prefs.ht_allege	=	val
+			prefs.sauvegarder()		
+		)
+		on  spn_larg_fenetre			changed	val 	do (	
+			prefs.larg_fenetre	=	val
+			prefs.sauvegarder()		
+		)
+		on  spn_ht_fenetre			changed	val 	do (	
+			prefs.ht_fenetre	=	val
+			prefs.sauvegarder()		
+		)
+		on  spn_nbr_fenetre			changed	val 	do (	
+			prefs.nbr_fenetre	=	val
+			prefs.sauvegarder()		
+		)
+		on  rdo_align_fenetre			changed		arg 	do (	
+			
+			--- on gere les preferences -----
+			prefs.align_fenetre	=	arg
+			prefs.sauvegarder()
+			actualiser ()
+			
+		)
+		on  spn_esp_fenetre			changed	val 	do (	
+			prefs.esp_fenetre	=	val
+			prefs.sauvegarder()		
+		)
+		on  spn_decal_fenetre			changed	val 	do (	
+			prefs.decal_fenetre	=	val
+			prefs.sauvegarder()		
+		)
+		
+		
+		
 	)	-- fin rollout Baies --
 
+	
+	---- Rollout 2 ventaux  ---------------------------------------------------------------------------------------------
+	rollout rollDeuxVentaux "2 ventaux" width:743 height:99 	(
+		
+		---- UI ----
+		label 		'lbl_htSsPlaf' 	"Hauteur sous plaf. :" 	pos:[8,9] 		width:100 height:19 align:#left
+		spinner 	'spn_htSsPlaf' 	"" 								pos:[114,9] 	width:100 height:16 range:[0,10000,0] type:#worldunits align:#left		
+		label 		'lbl_epDalle' 		"Ep. dalle :" 					pos:[264,9] 	width:60 	height:19 align:#left
+		spinner	'spn_epDalle' 	"" 								pos:[324,9] 	width:100 height:16 range:[0,10000,0] type:#worldunits align:#left
+		
+		---- fonctions ----
+		fn actualiser = (
+			spn_htSsPlaf.value 	= prefs.ht_etage
+			spn_epDalle.value 		= prefs.ep_dalle			
+		)
+		
+		---- evenements ----
+		on rollEtage open do actualiser ()
+		on spn_htSsPlaf changed val do (
+			prefs.ht_etage	=	val
+			prefs.sauvegarder()
+		)
+		on spn_epDalle changed val do (
+			prefs.ep_dalle	=	val
+			prefs.sauvegarder()
+		)
+		
+	)	-- fin Rollout 2 ventaux   --
+	
+	
+	---- Rollout 2 ventaux allege ---------------------------------------------------------------------------------------------
+	rollout rollDeuxVentauxAllege "2 ventaux avec allège" width:743 height:99 	(
+		
+		---- UI ----
+		label 		'lbl_htSsPlaf' 	"Hauteur sous plaf. :" 	pos:[8,9] 		width:100 height:19 align:#left
+		spinner 	'spn_htSsPlaf' 	"" 								pos:[114,9] 	width:100 height:16 range:[0,10000,0] type:#worldunits align:#left		
+		label 		'lbl_epDalle' 		"Ep. dalle :" 					pos:[264,9] 	width:60 	height:19 align:#left
+		spinner	'spn_epDalle' 	"" 								pos:[324,9] 	width:100 height:16 range:[0,10000,0] type:#worldunits align:#left
+		
+		---- fonctions ----
+		fn actualiser = (
+			spn_htSsPlaf.value 	= prefs.ht_etage
+			spn_epDalle.value 		= prefs.ep_dalle			
+		)
+		
+		---- evenements ----
+		on rollEtage open do actualiser ()
+		on spn_htSsPlaf changed val do (
+			prefs.ht_etage	=	val
+			prefs.sauvegarder()
+		)
+		on spn_epDalle changed val do (
+			prefs.ep_dalle	=	val
+			prefs.sauvegarder()
+		)
+		
+	)	-- fin  rollDeuxVentauxAllege   --
+	
+	
 	------------------------------------------------------------
 	---- Fonctions	----------------------------------------
 	------------------------------------------------------------
@@ -695,6 +963,24 @@ rollout rollConstruction "Construction" 	width:765 	height:80
 			bouton.enabled = b_actif
 		
 	)
+	fn actualiserSousRollout = (
+		rollEtage.actualiser ()
+		rollAccrotere.actualiser ()
+		rollDeuxPans.actualiser ()
+		rollQuatrePans.actualiser ()
+		rollBaies.actualiser ()
+		rollDeuxVentaux.actualiser ()
+		rollDeuxVentauxAllege.actualiser ()
+	)
+	fn fermerSsRollouts = (
+		rollEtage.open						=false
+		rollAccrotere.open					=false
+		rollDeuxPans.open					=false
+		rollQuatrePans.open				=false
+		rollBaies.open						=false
+		rollDeuxVentaux.open			=false
+		rollDeuxVentauxAllege.open	=false
+	)
 	fn initialiser = (
 		
 		---- creation des structures ----
@@ -702,7 +988,6 @@ rollout rollConstruction "Construction" 	width:765 	height:80
 		outils 	= outilsStruct ()
 		matID 	= matIDStruct ()
 		prefs		= prefsStruct ()
-		
 		
 		---- le tableau des boutons de l'interface ----
 		boutons = #( btn_etage, btn_accrotere, btn_pansDeux, btn_pansTrois, btn_pansQuatre, btn_baies, btn_ventDeux, btn_ventDeuxAllege, btn_balcon, btn_loggia )
@@ -719,7 +1004,13 @@ rollout rollConstruction "Construction" 	width:765 	height:80
 		---- les rollout dans le sousRoll -----
 		AddSubRollout sousRoll	 rollEtage 
 		AddSubRollout sousRoll	 rollAccrotere 
+		AddSubRollout sousRoll	 rollDeuxPans 
+		AddSubRollout sousRoll	 rollQuatrePans 
 		AddSubRollout sousRoll	 rollBaies 
+		AddSubRollout sousRoll	 rollDeuxVentaux 
+		AddSubRollout sousRoll	 rollDeuxVentauxAllege 
+		
+		fermerSsRollouts ()
 		
 	)
 	fn fermer = (
@@ -748,7 +1039,6 @@ rollout rollConstruction "Construction" 	width:765 	height:80
 		)
 	)
 	
-	
 	------------------------------------------------------------
 	---- Evenements -----------------------------------------
 	------------------------------------------------------------
@@ -768,8 +1058,28 @@ rollout rollConstruction "Construction" 	width:765 	height:80
 	on btn_balcon 				pressed do 	const.balcon ()
 	on btn_loggia 				pressed do 	const.loggia ()
 	
+	---- cliques droit	----
+	on btn_etage 				rightclick 	do 	(
+		fermerSsRollouts ()
+		rollEtage.open		=	true		
+	)
+	on btn_accrotere 				rightclick 	do 	(
+		fermerSsRollouts ()
+		rollAccrotere.open		=	true		
+	)
+	on btn_baies 				rightclick 	do 	(
+		fermerSsRollouts ()
+		rollBaies.open		=	true		
+	)
+	
+	
 	---- UI ----
-	on btn_details 					changed _state do togglerDetails _state	
+	on btn_details 				changed _state 	do togglerDetails _state	
+	on btn_defauts 				pressed 			do ( 
+		prefs.resetFichier ()
+		prefs = prefsStruct ()
+		actualiserSousRollout  ()
+	)
 	
 )	-- fin rollout
 
