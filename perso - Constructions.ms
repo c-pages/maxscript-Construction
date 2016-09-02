@@ -100,7 +100,31 @@ rollout rollConstruction "Construction" 	width:765 	height:80
 		),
 		
 		
+		
+		
 		---- manipulation des faces du node ----
+		fn grouperFaces 	_node 	_faces 	_nom 	=(
+			if _node.faces[_nom] == undefined  
+							then		_node.faces[_nom] = 	_faces
+							else		(								
+								tabFaces = for face in _node.faces[_nom] collect face.index
+								tabFaces += _faces
+								_node.faces[_nom] = tabFaces
+							)
+		),
+		fn degrouperFaces 	_node 	_facesARetirer 	_nom 	=(
+			if _node.faces[_nom] != undefined  do		(								
+				tabFaces = for face in _node.faces[_nom] collect 	face.index
+					for  _face in _facesARetirer do (
+						idItem = findItem tabFaces   _face
+						if idItem >0 do deleteItem 	tabFaces  idItem
+					)
+				_node.faces[_nom] = tabFaces
+			)
+		),
+		
+		
+		
 		fn etendreSelecFaces		_node 	_faces	= (
 			
 			_faces_a_retirer = _faces 		---- ( polyop.getFaceSelection  _node ) as array
@@ -111,24 +135,119 @@ rollout rollConstruction "Construction" 	width:765 	height:80
 			
 		),
 
-		fn 	arreteLaPlusPetite		_node		_listeArretes	= (
+		
+		---- selection par taille ----
+		fn arreteLaPlusPetite		_node		_listeArretes	= (
 			
 			local arretePlusPetite,  longMin
+			
 			for arrete in _listeArretes do (
 				listePoints = polyop.getEdgeVerts  	_node	arrete
 				pt1 = _node.verts[listePoints[1]]
 				pt2 = _node.verts[listePoints[2]]
 				longueurArrete =  length ( pt1.position	- pt2.position  )
 				
-				if longMin == undefined do longMin = longueurArrete
+				if longMin == undefined do (
+					longMin = longueurArrete					
+					arretePlusPetite = arrete
+				)
+				
 				if longueurArrete < longMin do (
 					longMin = longueurArrete
 					arretePlusPetite = arrete
 				)
-			)
+				
+			) -- fin for do --
+			
 			return 	arretePlusPetite
+			
+		),
+		fn arretesLesPlusPetites		_node		_listeArretes	 nbre: = (
+			
+			local _arretesPlusPetites,  longMin
+			local _nbresArretes = floor ( (_listeArretes as array).count / 2 )
+			local _result = #()
+			
+			if nbre == unsupplied 
+				then		_nbresArretes	= floor ( (_listeArretes as array).count / 2 )
+				else		_nbresArretes	= nbre
+				
+			while _result.count < _nbresArretes do (
+				local _arreteAAJouter = arreteLaPlusPetite		_node		_listeArretes
+				
+				deleteItem	_listeArretes 	_arreteAAJouter
+				append 		_result  		_arreteAAJouter
+			)
+			
+			_result
+			
+		),		
+		fn facesLesPlusPetites	_node	_faces	nbre: =(
+			local _nbresFaces 
+			local _result = #()
+			
+			if nbre == unsupplied 
+				then		_nbresFaces	= floor ( (_faces as array).count / 2 )
+				else		_nbresFaces	= nbre
+			
+			while _result.count != _nbresFaces do (
+				local _min = 1000000000000000000000000000.0
+				local _faceAAJouter
+				for _face in _faces do (
+					if polyop.getFaceArea _node _face <= _min  and (findItem _result _face ) == 0 do (
+						_faceAAJouter 	= _face
+						_min 				= polyop.getFaceArea _node _face 
+					)
+				)
+				append _result 	_faceAAJouter
+			)
+			_result
+		),		
+		fn facesLesPlusGrandes	_node	_faces	nbre:  =(
+			local _nbresFaces 
+			local _result = #()
+			
+			if nbre == unsupplied 
+				then		_nbresFaces	= floor ( (_faces as array).count / 2 )
+				else		_nbresFaces	= nbre
+			
+			while _result.count != _nbresFaces do (
+				local _min = 0.0
+				local _faceAAJouter
+				for _face in _faces do (
+					if polyop.getFaceArea _node _face >= _min  and (findItem _result _face ) == 0 do (
+						_faceAAJouter 	= _face
+						_min 				= polyop.getFaceArea _node _face 
+					)
+				)
+				append _result 	_faceAAJouter
+			)
+			_result
 		),
 		
+		
+		---- selection par position ----
+		fn faceLaPlusHaute 	_node 	_faces = (
+			local  faceHaute 
+			for faceID in _faces do (
+				if faceHaute = undefined do faceHaute = faceID
+				if  ( polyop.getFaceCenter 	_node 	faceID ).z  > ( polyop.getFaceCenter 	_node	faceHaute ).z do
+					 faceHaute = faceID
+			)
+			return faceHaute
+		),		
+		fn faceLaPlusBasse 	_node 	_faces = (
+			local  faceHaute 
+			for faceID in _faces do (
+				if faceHaute == undefined do faceHaute = faceID
+				if  ( polyop.getFaceCenter 	_node 	faceID ).z  < ( polyop.getFaceCenter 	_node	faceHaute ).z do
+					 faceHaute = faceID
+			)
+			return faceHaute
+		),
+		
+		
+		---- meusures ----
 		fn ZMinFace 	_node  _listeFaces = (
 			
 			local pointLePlusBas
@@ -143,7 +262,6 @@ rollout rollConstruction "Construction" 	width:765 	height:80
 			)			
 			return 	pointLePlusBas			
 		),
-		
 		fn largeurFace 	_node _face = (
 			local listePoints = polyop.getFaceVerts  	_node	_face
 			local result = 0
@@ -158,37 +276,19 @@ rollout rollConstruction "Construction" 	width:765 	height:80
 			)
 			return result
 		),
-		
 		fn hauteurFace 	_node 	_face = (
-			local listePoints = polyop.getFaceVerts  	_node	_face
-			local result = 0, mini = 10000000000, maxi = 0
-			for  pt in listePoints 	do (
-				pt = _node.verts[ pt ]		
-				if pt.position.z < mini 	do mini 	= pt.position.z
-				if pt.position.z > maxi 	do maxi 	= pt.position.z
+			local _listePoints = polyop.getFaceVerts  	_node	_face
+			local _result = 0, _mini = 10000000000, _maxi = 0
+			for  _pt in _listePoints 	do (
+				_pt = _node.verts[ _pt ]		
+				if _pt.position.z < _mini 	do _mini 	= _pt.position.z
+				if _pt.position.z > _maxi 	do _maxi 	= _pt.position.z
 			)
-			result = maxi  - mini
-			return result
-		),
-		fn faceLaPlusHaute 	_node 	_faces = (
-			local  faceHaute 
-			for faceID in _faces do (
-				if faceHaute = undefined do faceHaute = faceID
-				if  ( polyop.getFaceCenter 	_node 	faceID ).z  > ( polyop.getFaceCenter 	_node	faceHaute ).z do
-					 faceHaute = faceID
-			)
-			return faceHaute
+			_result = _maxi  - _mini
+			_result
 		),
 		
-		fn faceLaPlusBasse 	_node 	_faces = (
-			local  faceHaute 
-			for faceID in _faces do (
-				if faceHaute == undefined do faceHaute = faceID
-				if  ( polyop.getFaceCenter 	_node 	faceID ).z  < ( polyop.getFaceCenter 	_node	faceHaute ).z do
-					 faceHaute = faceID
-			)
-			return faceHaute
-		),
+		
 		
 		fn centreDeLaFace	_node	_face = (
 			
@@ -259,8 +359,7 @@ rollout rollConstruction "Construction" 	width:765 	height:80
 	struct prefsStruct (
 		
 		---- le fichier des preferences	----
-		fichier 					= "$userScripts\construction.ini",
-		
+		fichier 					= "$userScripts\construction.ini",		
 		
 		---- les preferences	----
 		ep_mur					=	30,	---- Epaisseur du mur.
@@ -272,6 +371,10 @@ rollout rollConstruction "Construction" 	width:765 	height:80
 		ep_couvertine		=	5,		---- Epaisseur de la couvertine.
 		ht_couvertine		=	5,		---- Hauteur de la couvertine.
 		
+		lrg_debord			=	50,	---- Largeur du débord de toit pour toiture ferme
+		ht_toiture				=	30,	---- Hauteur de la toiture ( en debord )
+		ep_toiture				=	7,		----  Epaisseur de la toiture
+		
 		ht_allege				= 90,	---- Hauteur de l'allège
 		nbr_fenetre			= 0,		---- Nombre de fenetre à creer ( 0: remplis la face fenetres )
 		ht_fenetre				= 210,	---- Hauteur de la fenetre
@@ -279,17 +382,7 @@ rollout rollConstruction "Construction" 	width:765 	height:80
 		esp_fenetre			= 150,	---- Largeur du plein entre 2 fenetres
 		align_fenetre			= 1,		---- L'alignement des fenetre dans la face
 		decal_fenetre			= 50,	---- Le décalage de la premiere fenetre pa rapport au bord de la face.
-		
-		
-		/* 
-		spn_ht_allege.value 				= prefs.ht_allege
-		spn_larg_fenetre.value 			= prefs.larg_fenetre
-		spn_ht_fenetre.value 			= prefs.ht_fenetre
-		spn_nbr_fenetre.value 			= prefs.nbr_fenetre
-		rdo_align_fenetre.value 			= prefs.align_fenetre
-		spn_esp_fenetre.value 			= prefs.esp_fenetre
-		spn_decal_fenetre.value 		= prefs.decal_fenetre */
-		
+			
 		
 		--- Fontions ----
 		fn sauvegarder 	= (
@@ -302,6 +395,10 @@ rollout rollConstruction "Construction" 	width:765 	height:80
 			setINISetting   fichier		"prefs"   "ht_accrotere"  			( ht_accrotere as string )
 			setINISetting   fichier		"prefs"   "ep_couvertine"		( ep_couvertine as string )
 			setINISetting   fichier		"prefs"   "ht_couvertine"  		( ht_couvertine as string )
+			
+			setINISetting   fichier		"prefs"   "lrg_debord"  			( lrg_debord as string )
+			setINISetting   fichier		"prefs"   "ht_toiture"  			( ht_toiture as string )
+			setINISetting   fichier		"prefs"   "ep_toiture"  			( ep_toiture as string )
 			
 			setINISetting   fichier		"prefs"   "ht_allege"  				( ht_allege as string )
 			setINISetting   fichier		"prefs"   "nbr_fenetre"  			( nbr_fenetre as string )
@@ -323,6 +420,10 @@ rollout rollConstruction "Construction" 	width:765 	height:80
 			ht_accrotere 			=	( getINISetting   fichier	"prefs"   "ht_accrotere"  			as float )
 			ep_couvertine		=	( getINISetting   fichier	"prefs"   "ep_couvertine"		as float )
 			ht_couvertine		=	( getINISetting   fichier	"prefs"   "ht_couvertine"  		as float )
+			
+			lrg_debord			= 	( getINISetting   fichier	"prefs"   "lrg_debord"  			as float )
+			ht_toiture				= 	( getINISetting   fichier	"prefs"   "ht_toiture"  			as float )
+			ep_toiture				= 	( getINISetting   fichier	"prefs"   "ep_toiture"  			as float )
 			
 			ht_allege				= 	( getINISetting   fichier	"prefs"   "ht_allege"  				as float )
 			nbr_fenetre			= 	( getINISetting   fichier	"prefs"   "nbr_fenetre"  			as float )
@@ -353,31 +454,51 @@ rollout rollConstruction "Construction" 	width:765 	height:80
 	struct constructionStruct (
 		
 		--- Fontions ----
-		fn etage = (
+		fn etage 	_node	_faces	= (
 			undo "construction : étage" on (
 				with redraw off (
 					
-					local _node = $
+					---- Selection des faces (deja selectionnées dans la version de base)	----
+					polyop.setFaceSelection  _node 	_faces
 					
 					---- extrusion de la hauteur sous plafond----
 					_node.extrusionType = 0
 					_node.faceExtrudeHeight = prefs.ht_etage
 					_node.EditablePoly.buttonOp #Extrude
 					
+					---- le nom de la selection des "facades"----
+					_faceSelectionTmp 	= (  polyop.getFaceSelection  _node  ) as array 
+					outils.etendreSelecFaces		_node 	_faceSelectionTmp
+					_facesFacades 			= 	(  polyop.getFaceSelection  _node  ) as array 
+					outils.grouperFaces 	_node	_facesFacades	"const_facades" 	
+					polyop.setFaceSelection  _node _faceSelectionTmp
+					
 					---- extrusion de l'épaisseur de la dalle----
 					_node.faceExtrudeHeight = prefs.ep_dalle
 					_node.EditablePoly.buttonOp #Extrude
+					
+					---- le nom de la selection des "dalles"----
+					_faceSelectionTmp 	= (  polyop.getFaceSelection  _node  ) as array 
+					outils.etendreSelecFaces		_node 	_faceSelectionTmp
+					_facesFacades 			= 	(  polyop.getFaceSelection  _node  ) as array 
+					outils.grouperFaces 	_node	_facesFacades	"const_dalles" 	
+					polyop.setFaceSelection  _node _faceSelectionTmp
 					
 				) -- fin redraw off
 				redrawViews()
 			)	-- fin undo
 		),
 		
-		fn accrotere 	= (
+		
+		
+		
+		
+		fn accrotere	_node	_faces	= (
 			undo "construction : accrotere" on (
 				with redraw off (
 					
-					local _node = $
+					---- Selection des faces (deja selectionnées dans la version de base)	----
+					polyop.setFaceSelection  _node 	_faces
 					
 					---- MatID mur	----
 					_node.EditablePoly.setMaterialIndex 		matID.mur	 	1
@@ -432,63 +553,140 @@ rollout rollConstruction "Construction" 	width:765 	height:80
 			)	-- fin undo
 		),
 		
-		fn pansDeux = (
+		fn pansDeux 		_node	_faces	= (
 			undo "construction : 2 pans" on (
 				with redraw off (
 					
-					local _node = $
+					---- Selection des faces (deja selectionnées dans la version de base)	----
+					polyop.setFaceSelection  _node 	_faces
 					
-					---- Calcul edge le plus petit 	----
-					listeArretes = polyop.getEdgesUsingFace 	_node	( polyop.getFaceSelection  _node )
-					arretePlusPetite  = outils.arreteLaPlusPetite		_node		listeArretes
-					if arretePlusPetite != undefined do (
-						polyop.setEdgeSelection  _node #(arretePlusPetite)
+					---- declarations ----					
+					local 	_listeArretes = polyop.getEdgesUsingFace 	_node	( polyop.getFaceSelection  _node ) 
+					
+					--- si on a un rectangle ----
+					if ( _listeArretes as array ).count == 4 do (
+						
+						---- 	CREATION DU DEBORD	----
+						-- Selection des faces à extruder --
+						outils.etendreSelecFaces		_node 	_faces
+						_facesDalles 			= ( polyop.getFaceSelection  _node ) as array
+						_facesPourDebords = outils.facesLesPlusGrandes	_node	_facesDalles
+						polyop.setFaceSelection  _node	_facesPourDebords
+						
+						_faceLaPlusPetite 	=	( outils.facesLesPlusPetites 	_node 	_facesDalles)[1]
+						_hauteurFaitage 	= ( outils.largeurFace	_node	_faceLaPlusPetite ) / 2
+						
+						-- Extrusion du debord --					
+						_node.extrusionType 				= 1
+						_node.faceExtrudeHeight 		= prefs.lrg_debord
+						_node.EditablePoly.buttonOp	#Extrude
+						
+						
+						---- CREATION DU FAITAGE ----
+						-- selection des faces pour le toit --
+						polyop.setFaceSelection  _node	_faces
+						
+						-- Selection des arretes pour connection --
 						subobjectLevel = 2
-					)
+						_arretesPourConnect	=	outils.arretesLesPlusPetites		_node   _listeArretes
+						polyop.setEdgeSelection  _node 	_arretesPourConnect
+						
+						-- Connection des arretes pour creation faitage	--
+						_node.connectEdgeSegments = 1
+						_node.connectEdgePinch = 0
+						_node.connectEdgeSlide = 0
+						_node.EditablePoly.ConnectEdges ()
+						
+						--- hauteur du faitage --
+						_hauteurToiture =  _hauteurFaitage
+						move 	_node.selectedEdges [0,0, _hauteurToiture ]
+						
+						---- CREATION DU TOIT ----
+						-- smothing group des faces du toit ---
+						_node.EditablePoly.ConvertSelection #Edge #Face
+						subobjectLevel = 4
+						_node.EditablePoly.autosmooth ()
+						
+						-- extrusion de la hauteur du toit --
+						_node.extrusionType 				= 1
+						_node.faceExtrudeHeight 		= prefs.ht_toiture
+						_node.EditablePoly.buttonOp #Extrude
+						
+						-- Selection epaisseur Du toit --
+						outils.etendreSelecFaces		_node 	( polyop.getFaceSelection  _node )
+						
+						-- extrusion de la epaisseur du toit --
+						_node.extrusionType 				= 1
+						_node.faceExtrudeHeight 		= prefs.ep_toiture
+						_node.EditablePoly.buttonOp #Extrude
+						
+					) ---- fin de si on a un rectangle
+					
 					
 				) -- fin redraw off
 				redrawViews()
 			)	-- fin undo
 		),
 		
-		fn pansTrois = (
+		fn pansTrois 	_node	_faces	= (
 			format "pansTrois\n"
+			undo "construction : 3 pans" on (
+				with redraw off (
+					
+					---- Selection des faces (deja selectionnées dans la version de base)	----
+					polyop.setFaceSelection  _node 	_faces
+										
+				) -- fin redraw off
+				redrawViews()
+			)	-- fin undo
 			
 		),
 		
-		fn pansQuatre = (
+		fn pansQuatre 	_node	_faces	= (
 			format "pansQuatre\n"
+			undo "construction : 4 pans" on (
+				with redraw off (
+					
+					---- Selection des faces (deja selectionnées dans la version de base)	----
+					polyop.setFaceSelection  _node 	_faces
+					
+				) -- fin redraw off
+				redrawViews()
+			)	-- fin undo
 			
 		),
 		
-		fn baies = (
+		
+		
+		
+		fn baies 	_node	_faces	= (
 			
 			undo "construction : bais" on (
 				with redraw off (
 					
+					---- Selection des faces (deja selectionnées dans la version de base)	----
+					polyop.setFaceSelection  _node 	_faces
+					
 					--- declarations	----
-					local _node = $
 					local _arretesAlleges 	= #()
 					local	 _arretesLintots 		= #()
 					local _facesBandeaux	= #()
 					local _facesBais			= #()
-					local _facesSelection 	= ( polyop.getFaceSelection  _node )
+					local _facesSelection 	= _faces
 					
 					---- MatID mur	----
 					_node.EditablePoly.setMaterialIndex 		matID.mur	 	1
 					
 					--- DECOUPAGE DES BAIES	----
-					polyop.setEdgeSelection  _node #()
+					polyop.setEdgeSelection  _node #()					
 					for face in  _facesSelection do (
 						
 						--- vérification de la validité de la face ----
 						hauteurFace 		= outils.hauteurFace 	_node	face
 						largeurFace		= outils.largeurFace	_node	face
 						hauteurFaceMin	= prefs.ht_fenetre
-						largeurFaceMin	= prefs.larg_Fenetre + prefs.ep_mur
-						
+						largeurFaceMin	= prefs.larg_Fenetre + prefs.ep_mur						
 						if hauteurFace >= hauteurFaceMin and largeurFace >= largeurFaceMin	do (
-							
 							
 							---- Découpe de l'allège	----
 							Zmin = outils.ZMinFace 		_node 	#(face)
@@ -503,36 +701,45 @@ rollout rollConstruction "Construction" 	width:765 	height:80
 							
 							-- Selection de la face à découper --
 							facesTmp 		= 	polyop.getEdgeFaces		_node	( _node.GetNumEdges	() )
-							nouvelleFace 	=	outils.faceLaPlusBasse 	_node 	facesTmp
+							nouvelleFace 	=	outils.faceLaPlusBasse 	_node 	facesTmp							
 							polyop.setFaceSelection  _node		#( nouvelleFace  )
 							
+							
 							---- Decoupage vertical	----
-							centreFace 		= 		outils.centreDeLaFace		_node	face
-							normalFace 		= 	(	polyop.getFaceNormal  	_node 	face ) * rotateZMatrix 90 
+							centreFace 		= 		outils.centreDeLaFace		_node	face							
+							normalFace 		= ( polyop.getFaceNormal _node face ) 
+							normalFaceRotZ	= normalFace * rotateZMatrix 90 
 							largeurFace 		= outils.largeurFace 		_node 	face
-							origine				= centreFace + normalFace * ( -largeurFace/2 + prefs.ep_mur )
-							transl_fenetre	= normalFace * prefs.larg_Fenetre
-							transl_plein		= normalFace * prefs.esp_fenetre
-							
+							origine				= centreFace + normalFaceRotZ * ( -largeurFace/2 + prefs.ep_mur )
+							origineSlice 		= origine - _node.pos
+							transl_fenetre	= normalFaceRotZ * prefs.larg_Fenetre
+							transl_plein		= normalFaceRotZ * prefs.esp_fenetre							
 							translation			= [0,0,0]
+							nbr_fenetre 		= 0
+							nbr_fenetreMax	=	if prefs.nbr_fenetre == 0 then 1 else prefs.nbr_fenetre
 							
-							while  length ( translation + transl_fenetre  + normalFace *	prefs.ep_mur ) < largeurFace do (
+							---- DECOUPES VERTICALES	----
+							dimensionMin = transl_fenetre  + normalFaceRotZ *	prefs.ep_mur
+							
+							
+							while  length ( translation +  dimensionMin ) < largeurFace and nbr_fenetre < nbr_fenetreMax 	do (
 								
 								---- Slice debut fenetre ----
-								_node.slice 	normalFace 	( origine + translation ) 	flaggedFacesOnly:true
+								_node.slice 	normalFaceRotZ 	( origineSlice + translation )  	flaggedFacesOnly:true
 								
 								---- Actualiser translation	----
 								translation += transl_fenetre	
 								
 								---- Slice fin fenetre ----
 								polyop.setEdgeSelection  _node		#()
-								_node.slice 	normalFace 	( origine + translation ) 	flaggedFacesOnly:true
+								_node.slice 	normalFaceRotZ 	( origineSlice + translation ) 	flaggedFacesOnly:true
 								
 								----	Ajout de la face de la fenetre dans la liste pour extrusion epaisseur du mur	----
 								derniereArrete 	=	(( polyop.getEdgeSelection  	_node ) as array )[1]
 								facesTmp 			= 	polyop.getEdgeFaces			_node		derniereArrete
+								
 								local faceAAjouter
-								distMin = 1000000000000
+								distMin = 1000000000000.0
 								for faceTmp in facesTmp do (
 									centreFaceTmp 		= 		outils.centreDeLaFace		_node		faceTmp
 									dist = length 	(  	centreFaceTmp - origine )
@@ -543,10 +750,16 @@ rollout rollConstruction "Construction" 	width:765 	height:80
 								)
 								append 	_facesBais		(  faceAAjouter )
 								
+								---- Actualiser nombre de fenetre créées	----
+								if prefs.nbr_fenetre != 0 do  nbr_fenetre += 1
+								
 								---- Actualiser translation	----
 								translation += transl_plein
 								
-							)	-- fin du while
+							)	-- fin du while --	
+							
+							
+							
 						)	-- fin du if 
 					)	-- fin du for
 					
@@ -557,12 +770,14 @@ rollout rollConstruction "Construction" 	width:765 	height:80
 					_node.EditablePoly.buttonOp #Extrude
 					
 					---- le nom de la selection des faces ----
-					if _node.faces["const_baies"] == undefined  
-							then		_node.faces["const_baies"] = 	( polyop.getFaceSelection  _node ) as array
-							else		_node.faces["const_baies"] += 	( polyop.getFaceSelection  _node ) as array
+					outils.grouperFaces	_node		(( polyop.getFaceSelection  _node ) as array) 		"const_baies" 	
+					
+					---- retirer de groupe "facades"	----
+					outils.degrouperFaces 	_node 	_facesSelection 	"const_facades" 
 					
 					---- MatID verre	----
 					_node.EditablePoly.setMaterialIndex 		matID.verre	 	1
+					
 					
 				) -- fin redraw off
 				redrawViews() 
@@ -570,13 +785,15 @@ rollout rollConstruction "Construction" 	width:765 	height:80
 			
 		),
 		
-		fn ventDeux = (
+		fn ventDeux 	_node	_faces	= (
 			
 			undo "construction : deux ventaux" on (
 				with redraw off (
 					
+					---- Selection des faces (deja selectionnées dans la version de base)	----
+					polyop.setFaceSelection  _node 	_faces
+					
 					--- declarations	----
-					local _node = $
 					local _facesSelection 	= ( polyop.getFaceSelection  _node )
 					
 					---- CREATION DE LA TABLETTE	---------------------
@@ -632,16 +849,46 @@ rollout rollConstruction "Construction" 	width:765 	height:80
 			)	-- fin undo
 			
 		),
-		fn ventDeuxAllege = (
+		
+		fn ventDeuxAllege 	_node	_faces	= (
 			format "ventDeuxAllege\n"
+			undo "construction : 2 ventaux + allège" on (
+				with redraw off (
+					
+					---- Selection des faces (deja selectionnées dans la version de base)	----
+					polyop.setFaceSelection  _node 	_faces
+										
+				) -- fin redraw off
+				redrawViews()
+			)	-- fin undo
 			
 		),
-		fn balcon = (
+		
+		fn balcon 	_node	_faces	= (
 			format "balcon\n"
+			undo "construction : Balcon" on (
+				with redraw off (
+					
+					---- Selection des faces (deja selectionnées dans la version de base)	----
+					polyop.setFaceSelection  _node 	_faces
+										
+				) -- fin redraw off
+				redrawViews()
+			)	-- fin undo
 			
 		),
-		fn loggia = (
+		
+		fn loggia 	_node	_faces	= (
 			format "loggia\n"
+			undo "construction : Loggia" on (
+				with redraw off (
+					
+					---- Selection des faces (deja selectionnées dans la version de base)	----
+					polyop.setFaceSelection  _node 	_faces
+					
+				) -- fin redraw off
+				redrawViews()
+			)	-- fin undo
 			
 		)
 		
@@ -668,13 +915,12 @@ rollout rollConstruction "Construction" 	width:765 	height:80
 	button 			'btn_balcon' 				"Balcon" 				pos:[591,26] 	width:60 		height:40 		align:#left
 	button 			'btn_loggia' 				"Loggia" 				pos:[661,26] 	width:60 		height:40 		align:#left
 	
-
 	GroupBox 		'grp_params' 			"Paramêtres " 		pos:[11,82] 		width:745 	height:283 	align:#left
-	
 	checkButton 	'btn_details' 				"+" 						pos:[735,55] 	width:17 		height:17 		align:#left	
 	subRollout 		'sousRoll' 					"Paramêtres" 		pos:[24,102] 	width:720 	height:234 	align:#left
 	button 			'btn_defauts' 			"Défauts" 				pos:[23,340] 	width:86 		height:18 		align:#left
 
+	Button 			'btn_tests' 				"tests" 					pos:[735,35] 	width:17 		height:17 		align:#left	
 
 	------------------------------------------------------------
 	---- Rollout secondaires ------------------------------------------
@@ -707,7 +953,6 @@ rollout rollConstruction "Construction" 	width:765 	height:80
 		)
 		
 	)	-- fin rollout etage --
-	
 	
 	---- Rollout de Accrotère ---------------------------------------------------------------------------------------------
 	rollout rollAccrotere "Accrotère" width:743 height:99 	(
@@ -754,7 +999,6 @@ rollout rollConstruction "Construction" 	width:765 	height:80
 		
 	)	-- fin rollout Accrotère --
 	
-	
 	---- Rollout deux pans  ---------------------------------------------------------------------------------------------
 	rollout rollDeuxPans "2 pans" width:743 height:99 	(
 		
@@ -783,6 +1027,33 @@ rollout rollConstruction "Construction" 	width:765 	height:80
 		
 	)	-- fin Rollout deux pans   --
 	
+	---- Rollout trois pans  ---------------------------------------------------------------------------------------------
+	rollout rollTroisPans "3 pans" width:743 height:99 	(
+		
+		---- UI ----
+		label 		'lbl_htSsPlaf' 	"Hauteur sous plaf. :" 	pos:[8,9] 		width:100 height:19 align:#left
+		spinner 	'spn_htSsPlaf' 	"" 								pos:[114,9] 	width:100 height:16 range:[0,10000,0] type:#worldunits align:#left		
+		label 		'lbl_epDalle' 		"Ep. dalle :" 					pos:[264,9] 	width:60 	height:19 align:#left
+		spinner	'spn_epDalle' 	"" 								pos:[324,9] 	width:100 height:16 range:[0,10000,0] type:#worldunits align:#left
+		
+		---- fonctions ----
+		fn actualiser = (
+			spn_htSsPlaf.value 	= prefs.ht_etage
+			spn_epDalle.value 		= prefs.ep_dalle			
+		)
+		
+		---- evenements ----
+		on rollEtage open do actualiser ()
+		on spn_htSsPlaf changed val do (
+			prefs.ht_etage	=	val
+			prefs.sauvegarder()
+		)
+		on spn_epDalle changed val do (
+			prefs.ep_dalle	=	val
+			prefs.sauvegarder()
+		)
+		
+	)	-- fin Rollout trois pans   --
 	
 	---- Rollout 4 pans  ---------------------------------------------------------------------------------------------
 	rollout rollQuatrePans "4 pans" width:743 height:99 	(
@@ -811,8 +1082,7 @@ rollout rollConstruction "Construction" 	width:765 	height:80
 		)
 		
 	)	-- fin Rollout 4 pans   --
-	
-	
+		
 	---- Rollout de Baies ---------------------------------------------------------------------------------------------
 	rollout rollBaies "Baies" width:743 height:99 	(
 -- 		button 'btn_appliquer' "Appliquer" pos:[624,9] width:108 height:82 align:#left
@@ -890,7 +1160,6 @@ rollout rollConstruction "Construction" 	width:765 	height:80
 		
 	)	-- fin rollout Baies --
 
-	
 	---- Rollout 2 ventaux  ---------------------------------------------------------------------------------------------
 	rollout rollDeuxVentaux "2 ventaux" width:743 height:99 	(
 		
@@ -918,8 +1187,7 @@ rollout rollConstruction "Construction" 	width:765 	height:80
 		)
 		
 	)	-- fin Rollout 2 ventaux   --
-	
-	
+		
 	---- Rollout 2 ventaux allege ---------------------------------------------------------------------------------------------
 	rollout rollDeuxVentauxAllege "2 ventaux avec allège" width:743 height:99 	(
 		
@@ -947,7 +1215,62 @@ rollout rollConstruction "Construction" 	width:765 	height:80
 		)
 		
 	)	-- fin  rollDeuxVentauxAllege   --
+		
+	---- Rollout Balcon ---------------------------------------------------------------------------------------------
+	rollout rollBalcons "Balcons" width:743 height:99 	(
+		
+		---- UI ----
+		label 		'lbl_htSsPlaf' 	"Hauteur sous plaf. :" 	pos:[8,9] 		width:100 height:19 align:#left
+		spinner 	'spn_htSsPlaf' 	"" 								pos:[114,9] 	width:100 height:16 range:[0,10000,0] type:#worldunits align:#left		
+		label 		'lbl_epDalle' 		"Ep. dalle :" 					pos:[264,9] 	width:60 	height:19 align:#left
+		spinner	'spn_epDalle' 	"" 								pos:[324,9] 	width:100 height:16 range:[0,10000,0] type:#worldunits align:#left
+		
+		---- fonctions ----
+		fn actualiser = (
+			spn_htSsPlaf.value 	= prefs.ht_etage
+			spn_epDalle.value 		= prefs.ep_dalle			
+		)
+		
+		---- evenements ----
+		on rollEtage open do actualiser ()
+		on spn_htSsPlaf changed val do (
+			prefs.ht_etage	=	val
+			prefs.sauvegarder()
+		)
+		on spn_epDalle changed val do (
+			prefs.ep_dalle	=	val
+			prefs.sauvegarder()
+		)
+		
+	)	-- fin  Balcon   --
 	
+	---- Rollout loggia ---------------------------------------------------------------------------------------------
+	rollout rollLoggias "loggias" width:743 height:99 	(
+		
+		---- UI ----
+		label 		'lbl_htSsPlaf' 	"Hauteur sous plaf. :" 	pos:[8,9] 		width:100 height:19 align:#left
+		spinner 	'spn_htSsPlaf' 	"" 								pos:[114,9] 	width:100 height:16 range:[0,10000,0] type:#worldunits align:#left		
+		label 		'lbl_epDalle' 		"Ep. dalle :" 					pos:[264,9] 	width:60 	height:19 align:#left
+		spinner	'spn_epDalle' 	"" 								pos:[324,9] 	width:100 height:16 range:[0,10000,0] type:#worldunits align:#left
+		
+		---- fonctions ----
+		fn actualiser = (
+			spn_htSsPlaf.value 	= prefs.ht_etage
+			spn_epDalle.value 		= prefs.ep_dalle			
+		)
+		
+		---- evenements ----
+		on rollEtage open do actualiser ()
+		on spn_htSsPlaf changed val do (
+			prefs.ht_etage	=	val
+			prefs.sauvegarder()
+		)
+		on spn_epDalle changed val do (
+			prefs.ep_dalle	=	val
+			prefs.sauvegarder()
+		)
+		
+	)	-- fin  loggia   --
 	
 	------------------------------------------------------------
 	---- Fonctions	----------------------------------------
@@ -967,19 +1290,25 @@ rollout rollConstruction "Construction" 	width:765 	height:80
 		rollEtage.actualiser ()
 		rollAccrotere.actualiser ()
 		rollDeuxPans.actualiser ()
+		rollTroisPans.actualiser ()
 		rollQuatrePans.actualiser ()
 		rollBaies.actualiser ()
 		rollDeuxVentaux.actualiser ()
 		rollDeuxVentauxAllege.actualiser ()
+		rollBalcons.actualiser ()
+		rollLoggias.actualiser ()
 	)
 	fn fermerSsRollouts = (
 		rollEtage.open						=false
 		rollAccrotere.open					=false
 		rollDeuxPans.open					=false
+		rollTroisPans.open					=false
 		rollQuatrePans.open				=false
 		rollBaies.open						=false
 		rollDeuxVentaux.open			=false
 		rollDeuxVentauxAllege.open	=false
+		rollBalcons.open						=false
+		rollLoggias.open						=false
 	)
 	fn initialiser = (
 		
@@ -1005,10 +1334,13 @@ rollout rollConstruction "Construction" 	width:765 	height:80
 		AddSubRollout sousRoll	 rollEtage 
 		AddSubRollout sousRoll	 rollAccrotere 
 		AddSubRollout sousRoll	 rollDeuxPans 
+		AddSubRollout sousRoll	 rollTroisPans 
 		AddSubRollout sousRoll	 rollQuatrePans 
 		AddSubRollout sousRoll	 rollBaies 
 		AddSubRollout sousRoll	 rollDeuxVentaux 
 		AddSubRollout sousRoll	 rollDeuxVentauxAllege 
+		AddSubRollout sousRoll	 rollBalcons 
+		AddSubRollout sousRoll	 rollLoggias 
 		
 		fermerSsRollouts ()
 		
@@ -1046,17 +1378,22 @@ rollout rollConstruction "Construction" 	width:765 	height:80
 	on rollConstruction open  			do 	initialiser ()
 	on rollConstruction close  			do	fermer ()
 	
+	
 	---- cliques gauche	----
-	on btn_etage 				pressed	do 	const.etage ()
-	on btn_accrotere 			pressed	do 	const.accrotere ()
-	on btn_pansDeux 			pressed do 	const.pansDeux ()
-	on btn_pansTrois 			pressed do 	const.pansTrois  ()
-	on btn_pansQuatre 		pressed do 	const.pansQuatre ()
-	on btn_baies			 		pressed do 	const.baies ()
-	on btn_ventDeux 			pressed do 	const.ventDeux ()
-	on btn_ventDeuxAllege 	pressed do 	const.ventDeuxAllege ()
-	on btn_balcon 				pressed do 	const.balcon ()
-	on btn_loggia 				pressed do 	const.loggia ()
+	on btn_etage 				pressed	do 	const.etage 				$	( polyop.getFaceSelection $ ) 
+	on btn_accrotere 			pressed	do 	const.accrotere 			$	( polyop.getFaceSelection $ ) 
+	on btn_pansDeux 			pressed do 	const.pansDeux 		$	( polyop.getFaceSelection $ ) 
+	on btn_pansTrois 			pressed do 	const.pansTrois  		$	( polyop.getFaceSelection $ ) 
+	on btn_pansQuatre 		pressed do 	const.pansQuatre 		$	( polyop.getFaceSelection $ ) 
+	on btn_baies			 		pressed do 	const.baies 			 	$	( polyop.getFaceSelection $ ) 
+	on btn_ventDeux 			pressed do 	const.ventDeux 			$	( polyop.getFaceSelection $ ) 
+	on btn_ventDeuxAllege 	pressed do 	const.ventDeuxAllege	$	( polyop.getFaceSelection $ ) 
+	on btn_balcon 				pressed do 	const.balcon 				$	( polyop.getFaceSelection $ ) 
+	on btn_loggia 				pressed do 	const.loggia 				$	( polyop.getFaceSelection $ ) 
+	
+	on btn_tests 				pressed do 	(
+		
+	)
 	
 	---- cliques droit	----
 	on btn_etage 				rightclick 	do 	(
@@ -1067,10 +1404,39 @@ rollout rollConstruction "Construction" 	width:765 	height:80
 		fermerSsRollouts ()
 		rollAccrotere.open		=	true		
 	)
+	on btn_pansDeux 				rightclick 	do 	(
+		fermerSsRollouts ()
+		rollDeuxPans.open		=	true		
+	)
+	on btn_pansTrois 				rightclick 	do 	(
+		fermerSsRollouts ()
+		rollTroisPans.open		=	true		
+	)
+	on btn_pansQuatre 			rightclick 	do 	(
+		fermerSsRollouts ()
+		rollQuatrePans.open		=	true		
+	)
 	on btn_baies 				rightclick 	do 	(
 		fermerSsRollouts ()
 		rollBaies.open		=	true		
 	)
+	on btn_ventDeux 				rightclick 	do 	(
+		fermerSsRollouts ()
+		rollDeuxVentaux.open		=	true		
+	)
+	on btn_ventDeuxAllege 				rightclick 	do 	(
+		fermerSsRollouts ()
+		rollDeuxVentauxAllege.open		=	true		
+	)
+	on btn_balcon 				rightclick 	do 	(
+		fermerSsRollouts ()
+		rollBalcons.open		=	true		
+	)
+	on btn_loggia 				rightclick 	do 	(
+		fermerSsRollouts ()
+		rollLoggias.open		=	true		
+	)
+	
 	
 	
 	---- UI ----
