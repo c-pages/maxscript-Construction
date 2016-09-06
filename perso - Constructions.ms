@@ -1,5 +1,6 @@
 
-/* #######################################################################################################################
+/*
+#######################################################################################################################
 
 	2017 Christophe Pages (http://www.c-pages.fr) 	
 
@@ -17,7 +18,8 @@
 	*v0.0 - [2016/08] -----------------------------------------------------------------------------
 	- Mise en place globale 
 	
-######################################################################################################################## */ 
+######################################################################################################################## 
+*/
 
 
 
@@ -26,7 +28,7 @@
 ------------------------------------------------------------------------------------------------------------------------
 ---- Rollout	--------------------------------------------------------------------------------------------------------
 ------------------------------------------------------------------------------------------------------------------------
-rollout rollConstruction "Construction" 	width:765 	height:80
+rollout rollConstruction "Construction" 	width:817 	height:80
 (
 	
 	------------------------------------------------------------
@@ -134,7 +136,66 @@ rollout rollConstruction "Construction" 	width:765 	height:80
 			polyop.setFaceSelection  _node 	_facesExtension	
 			
 		),
-
+		
+		fn facesDuDessous		_node	_faces	=	(
+			
+			local _selectBack 	= 	polyop.getFaceSelection  _node 
+			local	_facesDuBas 	= #()
+			for _face in _faces do (
+				polyop.setFaceSelection  	_node 	#(_face)
+				outils.etendreSelecFaces 	_node 	#(_face)
+				facesCadre = polyop.getFaceSelection  _node
+				local		_faceDuBas
+				for _faceCadre in facesCadre do 
+					if _faceDuBas == undefined 	
+						then _faceDuBas = _faceCadre
+					else	if ( outils.centreDeLaFace	_node	_faceCadre ).z  <  (outils.centreDeLaFace	_node	_faceDuBas ).z 	
+						then _faceDuBas = _faceCadre
+				
+				append _facesDuBas _faceDuBas
+			)
+			
+			format "Faces du bas : %\n" _facesDuBas
+			polyop.setFaceSelection  _node 	_selectBack
+			
+			for _face in _facesDuBas do
+				format "face : %  centre Z : % \n" 	_face	( outils.centreDeLaFace	_node	_face )
+			
+			
+			_facesDuBas
+		),		
+		fn BACKfacesDuDessous		_node	_faces	=	(
+			
+			local	_facesDuBas = #()
+			for _face in _faces do (
+				polyop.setFaceSelection  _node 	#(_face)
+				outils.etendreSelecFaces 		_node 	#(_face)
+				facesCadre = polyop.getFaceSelection  _node
+				local		_faceDuBas
+				for _faceCadre in facesCadre do 
+					if _faceDuBas == undefined 	then _faceDuBas = _faceCadre
+						else	if ( outils.centreDeLaFace		_node		_faceCadre ).z  <  (outils.centreDeLaFace		_node		_faceDuBas ).z 	then _faceDuBas = _faceCadre
+				
+				append _facesDuBas _faceDuBas
+			)
+			
+			format "Faces du bas : %\n" _facesDuBas
+			_facesDuBas
+		),
+		
+		fn faceLaPlusProche		_node		_faces		_ptReference 	= (							
+			local faceLaPlusProche
+			local distMin = 1000000000000.0
+			for faceTmp in _faces do (
+				centreFaceTmp 		= 		outils.centreDeLaFace		_node		faceTmp
+				dist = length 	(  	centreFaceTmp - _ptReference )
+				if dist < distMin do (
+					distMin = dist
+					faceLaPlusProche = faceTmp
+				)
+			)
+			faceLaPlusProche
+		),
 		
 		---- selection par taille ----
 		fn arreteLaPlusPetite		_node		_listeArretes	= (
@@ -289,68 +350,80 @@ rollout rollConstruction "Construction" 	width:765 	height:80
 		),
 		
 		
-		
 		fn centreDeLaFace	_node	_face = (
 			
-			local listePoints 	= polyop.getFaceVerts  	_node	_face
-			local pointsAlignesVerticalement 			= #()
-			local ptsResult 		= #()
-			local coinHtG, coinHtD, coinBsG, coinBsD
+			local versionMax = true
+			local centre = [0,0,0]
 			
-			---- regrouper les points alignés verticalement	----
-			for  i=1 to listePoints.count do (
-				ID_pt_1 = listePoints[ i ] 
-				pt_1 = _node.verts[ ID_pt_1 ]
-				
-				local resultTmp 			= #( ID_pt_1 )
-				
-				for  j=1 to listePoints.count do (
-					ID_pt_2 = listePoints[ j ] 					
-					pt_2 = _node.verts[ ID_pt_2 ]
-					
-					
-					if floor (  pt_1.position.x * 10 )== floor ( pt_2.position.x * 10 ) do 
-						if floor ( pt_1.position.y * 10 ) == floor ( pt_2.position.y * 10 ) do 
-							appendIfUnique resultTmp 		ID_pt_2
-					
-				)
-				sort resultTmp
-				
-				if resultTmp.count > 1 do 	append 	 	pointsAlignesVerticalement 		resultTmp
-				
-			)
+			---- la version max fait  une position  moyenne de tout les points , => pb si 5points sur  la face par ex ----
+			if versionMax then
+				centre = polyop.getFaceCenter _node _face
 			
-			virerDoublonsDansTableau  pointsAlignesVerticalement 
-			
-			---- selection dans chaque groupe de points du plus haut et du plus bas	----
-			for listPts in pointsAlignesVerticalement do (
-				---- min ----
-				local minZ, maxZ
-				for ptID in listPts do (
-					if minZ == undefined do minZ = ptID
-					if maxZ == undefined do maxZ = ptID
+			---- debut de version centre perso qui deconne ----
+			else (
+				
+				local listePoints 							= polyop.getFaceVerts  	_node	_face
+				local pointsAlignesVerticalement	= #()
+				local ptsResult 								= #()
+				local coinHtG, coinHtD, coinBsG, coinBsD
+				
+				---- regrouper les points alignés verticalement	----
+				for  i=1 to listePoints.count do (
 					
-					if _node.verts[ ptID ].position.z > _node.verts[ minZ ].position.z   do minZ =ptID
-					if _node.verts[ ptID ].position.z < _node.verts[ maxZ ].position.z  do maxZ =ptID
+					local	ID_pt_1 	= listePoints[ i ] 
+					local	pt_1 		= _node.verts[ ID_pt_1 ]				
+					local resultTmp = #( ID_pt_1 )
+					
+					for  j=1 to listePoints.count do (
+						ID_pt_2 = listePoints[ j ] 					
+						pt_2 = _node.verts[ ID_pt_2 ]
+						
+						if floor (  pt_1.position.x * 10 )	== floor ( pt_2.position.x * 10 ) do 
+							if floor ( pt_1.position.y * 10 ) == floor ( pt_2.position.y * 10 ) do 
+								appendIfUnique resultTmp 		ID_pt_2
+						
+					)
+					sort resultTmp
+					
+					if resultTmp.count > 1 do 	append 	 	pointsAlignesVerticalement 		resultTmp
 					
 				)
-				append ptsResult minZ
-				append ptsResult maxZ
-			)
-			
-			sort ptsResult
-			
-			---- moyenne des points hauts et bas	----
-			centre = [0,0,0]
-			if ptsResult.count != 0 do (
-				for IDpt in ptsResult do 
-					centre += _node.verts[ IDpt ].position
 				
-				centre = centre/ ptsResult.count
+				virerDoublonsDansTableau  pointsAlignesVerticalement 
+				
+				---- selection dans chaque groupe de points du plus haut et du plus bas	----
+				for listPts in pointsAlignesVerticalement do (
+					---- min ----
+					local minZ, maxZ
+					for ptID in listPts do (
+						if minZ == undefined do minZ = ptID
+						if maxZ == undefined do maxZ = ptID
+						
+						if _node.verts[ ptID ].position.z > _node.verts[ minZ ].position.z   do minZ =ptID
+						if _node.verts[ ptID ].position.z < _node.verts[ maxZ ].position.z  do maxZ =ptID
+						
+					)
+					append ptsResult minZ
+					append ptsResult maxZ
+				)
+				
+				sort ptsResult
+				
+				---- moyenne des points hauts et bas	----
+				if ptsResult.count != 0 do (
+					for IDpt in ptsResult do  (
+						centre += _node.verts[ IDpt ].position
+						format "_node.verts[ IDpt ].position : %\n" _node.verts[ IDpt ].position
+					)
+					centre = centre / ptsResult.count
+	-- 				format "	=>	centre : %\n" centre
+				)
+						format "face : %\n" 	_face
+				format "	=>	centre : %\n" centre
+				
+				centre
 			)
-			
-			centre
-		)
+		) -- fin else
 		
 	)	-- fin struct outils
 
@@ -359,7 +432,7 @@ rollout rollConstruction "Construction" 	width:765 	height:80
 	struct prefsStruct (
 		
 		---- le fichier des preferences	----
-		fichier 					= "$userScripts\construction.ini",		
+		fichier 					= "$userScripts\Construction\construction.ini",		
 		
 		---- les preferences	----
 		ep_mur					=	30,	---- Epaisseur du mur.
@@ -375,14 +448,21 @@ rollout rollConstruction "Construction" 	width:765 	height:80
 		ht_toiture				=	30,	---- Hauteur de la toiture ( en debord )
 		ep_toiture				=	7,		----  Epaisseur de la toiture
 		
+		ht_tablette			=	5,		----  Hauteur de la tablette des baies
+		ep_tablette			=	5,		----  Epaisseur de la tablette des baies
+		
 		ht_allege				= 90,	---- Hauteur de l'allège
+		
 		nbr_fenetre			= 0,		---- Nombre de fenetre à creer ( 0: remplis la face fenetres )
 		ht_fenetre				= 210,	---- Hauteur de la fenetre
 		larg_fenetre			= 100,	---- Largeur de la fenetre
 		esp_fenetre			= 150,	---- Largeur du plein entre 2 fenetres
 		align_fenetre			= 1,		---- L'alignement des fenetre dans la face
 		decal_fenetre			= 50,	---- Le décalage de la premiere fenetre pa rapport au bord de la face.
-			
+		
+		ep_cadreFenetre	= 3,		---- L'epaisseur du cadre des menuiseries
+		larg_cadreFenetre	= 5,		---- La largeur du cadre des menuiseries
+		
 		
 		--- Fontions ----
 		fn sauvegarder 	= (
@@ -400,6 +480,9 @@ rollout rollConstruction "Construction" 	width:765 	height:80
 			setINISetting   fichier		"prefs"   "ht_toiture"  			( ht_toiture as string )
 			setINISetting   fichier		"prefs"   "ep_toiture"  			( ep_toiture as string )
 			
+			setINISetting   fichier		"prefs"   "ht_tablette"  			( ht_tablette as string )
+			setINISetting   fichier		"prefs"   "ep_tablette"  			( ep_tablette as string )
+			
 			setINISetting   fichier		"prefs"   "ht_allege"  				( ht_allege as string )
 			setINISetting   fichier		"prefs"   "nbr_fenetre"  			( nbr_fenetre as string )
 			setINISetting   fichier		"prefs"   "ht_fenetre"  			( ht_fenetre as string )
@@ -407,6 +490,9 @@ rollout rollConstruction "Construction" 	width:765 	height:80
 			setINISetting   fichier		"prefs"   "esp_fenetre"			( esp_fenetre as string )
 			setINISetting   fichier		"prefs"   "align_fenetre"			( align_fenetre as string )
 			setINISetting   fichier		"prefs"   "decal_fenetre"			( decal_fenetre as string )
+			
+			setINISetting   fichier		"prefs"   "ep_cadreFenetre"		( ep_cadreFenetre as string )
+			setINISetting   fichier		"prefs"   "larg_cadreFenetre"	( larg_cadreFenetre as string )
 			
 		),
 		
@@ -425,6 +511,9 @@ rollout rollConstruction "Construction" 	width:765 	height:80
 			ht_toiture				= 	( getINISetting   fichier	"prefs"   "ht_toiture"  			as float )
 			ep_toiture				= 	( getINISetting   fichier	"prefs"   "ep_toiture"  			as float )
 			
+			ht_tablette			= 	( getINISetting   fichier	"prefs"   "ht_tablette"  			as float )
+			ep_tablette			= 	( getINISetting   fichier	"prefs"   "ep_tablette"  			as float )
+			
 			ht_allege				= 	( getINISetting   fichier	"prefs"   "ht_allege"  				as float )
 			nbr_fenetre			= 	( getINISetting   fichier	"prefs"   "nbr_fenetre"  			as float )
 			ht_fenetre				= 	( getINISetting   fichier	"prefs"   "ht_fenetre"  			as float )
@@ -432,6 +521,9 @@ rollout rollConstruction "Construction" 	width:765 	height:80
 			esp_fenetre			=	( getINISetting   fichier	"prefs"   "esp_fenetre"			as float )
 			align_fenetre			=	( getINISetting   fichier	"prefs"   "align_fenetre"			as integer )
 			decal_fenetre			=	( getINISetting   fichier	"prefs"   "decal_fenetre"			as float )
+			
+			ep_cadreFenetre	=	( getINISetting   fichier	"prefs"   "ep_cadreFenetre"		as float )
+			larg_cadreFenetre	=	( getINISetting   fichier	"prefs"   "larg_cadreFenetre"	as float )
 			
 		),
 		
@@ -453,7 +545,59 @@ rollout rollConstruction "Construction" 	width:765 	height:80
 	---- la structure de construction	---------------------------------------------------------------------------------------------
 	struct constructionStruct (
 		
-		--- Fontions ----
+	---- Les fonctions privées	----
+	private
+		fn	tablette		_node	_facesBase = (
+			
+			---- selection des faces	----
+			polyop.setFaceSelection _node	_facesBase		
+			
+			---- matID  tablette	----
+			_node.EditablePoly.setMaterialIndex 		matID.tablette	 	1
+			
+			---- extrusion  des tablettes	----
+			_node.extrusionType 				= 0
+			_node.faceExtrudeHeight 		= prefs.ht_tablette
+			_node.EditablePoly.buttonOp 	#Extrude
+			
+			-- listes des trucs a supprimer	(points et arretes en trop )	----
+			listeArretesAVirer 	= polyop.getEdgesUsingFace	_node	( ( polyop.getFaceSelection  _node ) as array )
+			listePointsAVirer 	= polyop.getVertsUsingFace  	_node	( ( polyop.getFaceSelection  _node ) as array )
+			
+			---- Extrusion du débord des tablettes 	----
+			outils.etendreSelecFaces		_node		( ( polyop.getFaceSelection  _node ) as array )
+			_node.faceExtrudeHeight = prefs.ep_tablette
+			_node.extrusionType = 1
+			_node.EditablePoly.buttonOp #Extrude
+			
+		),
+		fn cadre 	_node	_facesBase = (
+			
+			---- selection des faces	----
+			polyop.setFaceSelection _node	_facesBase		
+			
+			---- matID  menuiseries	----
+			_node.EditablePoly.setMaterialIndex 		matID.menuiseries	 	1
+			
+			---- Inset de la hauteur des menuiseries	----
+			_node.insetType = 1
+			_node.insetAmount = prefs.larg_cadreFenetre
+			_node.EditablePoly.buttonOp 		#Inset
+			
+			---- Extusion des menuiserie	----
+			_node.extrusionType 				= 0
+			_node.faceExtrudeHeight 		= -prefs.ep_cadreFenetre
+			_node.EditablePoly.buttonOp	#Extrude 
+			
+			---- matID  vitrage	----
+			_node.EditablePoly.setMaterialIndex 		matID.verre	 	1
+			
+		),
+		
+	---- Les fonctions publics	----
+	public
+		
+		--- NIVEAUX ----
 		fn etage 	_node	_faces	= (
 			undo "construction : étage" on (
 				with redraw off (
@@ -488,11 +632,57 @@ rollout rollConstruction "Construction" 	width:765 	height:80
 				redrawViews()
 			)	-- fin undo
 		),
+		fn diviser	_ratio 	_node	_faces	= (			
+			undo "construction : Diviser" on (
+				with redraw off (
+					
+					---- Selection des faces (deja selectionnées dans la version de base)	----
+					polyop.setFaceSelection  _node 	_faces
+					
+					local _facesFinales = #()
+					
+					--- Decoupage des faces	----
+					polyop.setEdgeSelection  _node #()					
+					for face in  _faces do (
+						
+						local centreFace 			= 	outils.centreDeLaFace		_node	face	
+						local largeurFace			= outils.largeurFace	_node	face
+						local normalFace 			= ( polyop.getFaceNormal _node face ) 
+						local normalFaceRotZ	= normalFace * rotateZMatrix 90 
+						local origine					= centreFace + normalFaceRotZ * ( -largeurFace/2 )
+						local origineSlice 			= origine - _node.pos						
+						local translation			= normalFaceRotZ * ( largeurFace / _ratio )
+						
+						---- Selection des faces (deja selectionnées dans la version de base)	----
+						polyop.setFaceSelection  _node 	#(face)
+						
+						for i = 1 to ( _ratio - 1) do (
+							
+								---- Slice debut fenetre ----
+								_node.slice 	normalFaceRotZ 	( origineSlice + translation )  	flaggedFacesOnly:true
+								
+								---- le nom de la selection des "facades"----
+								_faceSelectionTmp 	= (  polyop.getFaceSelection  _node  ) as array
+								outils.grouperFaces 	_node	_faceSelectionTmp	"const_facades"
+								for faceFinale in _faceSelectionTmp do
+									appendIfUnique _facesFinales faceFinale
+								
+								---- Actualiser translation	----
+								translation += translation
+							
+						) -- fin for i
+					) -- fin for face
+					
+					---- Selection des faces 	----
+					polyop.setFaceSelection  _node 	_facesFinales
+					
+				) -- fin redraw off
+				redrawViews() 
+			)	-- fin undo
+		),
 		
 		
-		
-		
-		
+		--- TOITURES ----		
 		fn accrotere	_node	_faces	= (
 			undo "construction : accrotere" on (
 				with redraw off (
@@ -552,7 +742,6 @@ rollout rollConstruction "Construction" 	width:765 	height:80
 				redrawViews()
 			)	-- fin undo
 		),
-		
 		fn pansDeux 		_node	_faces	= (
 			undo "construction : 2 pans" on (
 				with redraw off (
@@ -627,7 +816,6 @@ rollout rollConstruction "Construction" 	width:765 	height:80
 				redrawViews()
 			)	-- fin undo
 		),
-		
 		fn pansTrois 	_node	_faces	= (
 			format "pansTrois\n"
 			undo "construction : 3 pans" on (
@@ -641,7 +829,6 @@ rollout rollConstruction "Construction" 	width:765 	height:80
 			)	-- fin undo
 			
 		),
-		
 		fn pansQuatre 	_node	_faces	= (
 			format "pansQuatre\n"
 			undo "construction : 4 pans" on (
@@ -658,7 +845,7 @@ rollout rollConstruction "Construction" 	width:765 	height:80
 		
 		
 		
-		
+		---- OUVERTURES ----
 		fn baies 	_node	_faces	= (
 			
 			undo "construction : bais" on (
@@ -668,99 +855,81 @@ rollout rollConstruction "Construction" 	width:765 	height:80
 					polyop.setFaceSelection  _node 	_faces
 					
 					--- declarations	----
-					local _arretesAlleges 	= #()
-					local	 _arretesLintots 		= #()
-					local _facesBandeaux	= #()
 					local _facesBais			= #()
 					local _facesSelection 	= _faces
 					
 					---- MatID mur	----
 					_node.EditablePoly.setMaterialIndex 		matID.mur	 	1
 					
-					--- DECOUPAGE DES BAIES	----
+					---- DECOUPES HORIZONTALES	----
 					polyop.setEdgeSelection  _node #()					
 					for face in  _facesSelection do (
 						
-						--- vérification de la validité de la face ----
-						hauteurFace 		= outils.hauteurFace 	_node	face
-						largeurFace		= outils.largeurFace	_node	face
-						hauteurFaceMin	= prefs.ht_fenetre
-						largeurFaceMin	= prefs.larg_Fenetre + prefs.ep_mur						
-						if hauteurFace >= hauteurFaceMin and largeurFace >= largeurFaceMin	do (
+						local hauteurFace 		= outils.hauteurFace 	_node	face
+						local largeurFace		= outils.largeurFace	_node	face
+						local hauteurFaceMin	= prefs.ht_fenetre
+						local largeurFaceMin	= prefs.larg_Fenetre + prefs.ep_mur
+						local Zmin 				= outils.ZMinFace 		_node 	#(face)						
+						local hauteurLinteau 	= if prefs.ht_fenetre > hauteurFace then hauteurFace else prefs.ht_fenetre
+						
+						-- Selection de la face a tailler --
+						polyop.setFaceSelection  	_node 	#(face)
+						
+						---- Découpe de l'allège	----
+						_node.slice [0,0,1] [0,0,Zmin + prefs.ht_allege ] 	flaggedFacesOnly:true
+						
+						if hauteurLinteau != hauteurFace then (
+							---- Découpe du linteau	----
+							_node.slice [0,0,1] [0,0,Zmin + hauteurLinteau ] 	flaggedFacesOnly:true
 							
-							---- Découpe de l'allège	----
-							Zmin = outils.ZMinFace 		_node 	#(face)
-							polyop.setFaceSelection  	_node 	#(face)
-							_node.slice [0,0,1] [0,0,Zmin + prefs.ht_allege ] 	flaggedFacesOnly:true
-							append		_arretesAlleges	(  _node.GetNumEdges	() )
-							append 	_facesBandeaux	(  _node.GetNumFaces	() )
-							
-							---- Découpe du lintot	----
-							_node.slice [0,0,1] [0,0,Zmin + prefs.ht_fenetre ] 	flaggedFacesOnly:true
-							append		_arretesLintots	(  _node.GetNumEdges	() )
-							
+							---- DECOUPES VERTICALES	----
 							-- Selection de la face à découper --
 							facesTmp 		= 	polyop.getEdgeFaces		_node	( _node.GetNumEdges	() )
 							nouvelleFace 	=	outils.faceLaPlusBasse 	_node 	facesTmp							
 							polyop.setFaceSelection  _node		#( nouvelleFace  )
+						) 
+						
+						local centreFace 		= 		outils.centreDeLaFace		_node	face							
+						local normalFace 		= ( polyop.getFaceNormal _node face ) 
+						local normalFaceRotZ= normalFace * rotateZMatrix 90 
+						local largeurFace 		= outils.largeurFace 		_node 	face
+						local origine				= centreFace + normalFaceRotZ * ( -largeurFace/2 + prefs.ep_mur )
+						local origineSlice 		= origine - _node.pos
+						local transl_fenetre	= normalFaceRotZ * prefs.larg_Fenetre
+						local transl_plein		= normalFaceRotZ * prefs.esp_fenetre
+						local translation		= [0,0,0]
+						local nbr_fenetre 		= 0
+						local nbr_fenetreMax	=	if prefs.nbr_fenetre == 0 then 1 else prefs.nbr_fenetre
+						local dimensionMin 	= transl_fenetre  + normalFaceRotZ *	prefs.ep_mur
+						
+						
+						while  length ( translation +  dimensionMin ) < largeurFace and nbr_fenetre < nbr_fenetreMax 	do (
 							
+							---- Slice debut fenetre ----
+							_node.slice 	normalFaceRotZ 	( origineSlice + translation )  	flaggedFacesOnly:true
 							
-							---- Decoupage vertical	----
-							centreFace 		= 		outils.centreDeLaFace		_node	face							
-							normalFace 		= ( polyop.getFaceNormal _node face ) 
-							normalFaceRotZ	= normalFace * rotateZMatrix 90 
-							largeurFace 		= outils.largeurFace 		_node 	face
-							origine				= centreFace + normalFaceRotZ * ( -largeurFace/2 + prefs.ep_mur )
-							origineSlice 		= origine - _node.pos
-							transl_fenetre	= normalFaceRotZ * prefs.larg_Fenetre
-							transl_plein		= normalFaceRotZ * prefs.esp_fenetre							
-							translation			= [0,0,0]
-							nbr_fenetre 		= 0
-							nbr_fenetreMax	=	if prefs.nbr_fenetre == 0 then 1 else prefs.nbr_fenetre
+							---- Actualiser translation	----
+							translation += transl_fenetre	
 							
-							---- DECOUPES VERTICALES	----
-							dimensionMin = transl_fenetre  + normalFaceRotZ *	prefs.ep_mur
+							---- Slice fin fenetre ----
+							polyop.setEdgeSelection  _node		#()
+							_node.slice 	normalFaceRotZ 	( origineSlice + translation ) 	flaggedFacesOnly:true
 							
-							
-							while  length ( translation +  dimensionMin ) < largeurFace and nbr_fenetre < nbr_fenetreMax 	do (
-								
-								---- Slice debut fenetre ----
-								_node.slice 	normalFaceRotZ 	( origineSlice + translation )  	flaggedFacesOnly:true
-								
-								---- Actualiser translation	----
-								translation += transl_fenetre	
-								
-								---- Slice fin fenetre ----
-								polyop.setEdgeSelection  _node		#()
-								_node.slice 	normalFaceRotZ 	( origineSlice + translation ) 	flaggedFacesOnly:true
-								
-								----	Ajout de la face de la fenetre dans la liste pour extrusion epaisseur du mur	----
-								derniereArrete 	=	(( polyop.getEdgeSelection  	_node ) as array )[1]
+							----	Ajout de la face de la fenetre dans la liste pour extrusion epaisseur du mur	----
+							derniereArrete 	=	(( polyop.getEdgeSelection  	_node ) as array )[1]
+							if derniereArrete != undefined do (
 								facesTmp 			= 	polyop.getEdgeFaces			_node		derniereArrete
-								
-								local faceAAjouter
-								distMin = 1000000000000.0
-								for faceTmp in facesTmp do (
-									centreFaceTmp 		= 		outils.centreDeLaFace		_node		faceTmp
-									dist = length 	(  	centreFaceTmp - origine )
-									if dist < distMin do (
-										distMin = dist
-										faceAAjouter = faceTmp
-									)
-								)
-								append 	_facesBais		(  faceAAjouter )
-								
-								---- Actualiser nombre de fenetre créées	----
-								if prefs.nbr_fenetre != 0 do  nbr_fenetre += 1
-								
-								---- Actualiser translation	----
-								translation += transl_plein
-								
-							)	-- fin du while --	
+								faceAAjouter 		= outils.faceLaPlusProche		_node 	facesTmp	origine
+								append 	_facesBais		faceAAjouter 
+							)
+							---- Actualiser nombre de fenetre créées	----
+							if prefs.nbr_fenetre != 0 do  nbr_fenetre += 1
 							
+							---- Actualiser translation	----
+							translation += transl_plein
 							
-							
-						)	-- fin du if 
+						)	-- fin du while --	
+						
 					)	-- fin du for
 					
 					---- Extrusion epaisseur du mur ----
@@ -778,13 +947,13 @@ rollout rollConstruction "Construction" 	width:765 	height:80
 					---- MatID verre	----
 					_node.EditablePoly.setMaterialIndex 		matID.verre	 	1
 					
-					
 				) -- fin redraw off
+				
 				redrawViews() 
+				
 			)	-- fin undo
 			
 		),
-		
 		fn ventDeux 	_node	_faces	= (
 			
 			undo "construction : deux ventaux" on (
@@ -796,60 +965,38 @@ rollout rollConstruction "Construction" 	width:765 	height:80
 					--- declarations	----
 					local _facesSelection 	= ( polyop.getFaceSelection  _node )
 					
-					---- CREATION DE LA TABLETTE	---------------------
-					---- Selection des faces du bas ----
-					local	_facesDuBas = #()
-					for _face in _facesSelection do (
-						polyop.setFaceSelection  _node 	#(_face)
-						outils.etendreSelecFaces 		_node 	#(_face)
-						facesCadre = polyop.getFaceSelection  _node
-						local		_faceDuBas
-						for _faceCadre in facesCadre do 
-							if _faceDuBas == undefined 	then _faceDuBas = _faceCadre
-								else	if ( outils.centreDeLaFace		_node		_faceCadre ).z  <  (outils.centreDeLaFace		_node		_faceDuBas ).z 	then _faceDuBas = _faceCadre
-						
-						append _facesDuBas _faceDuBas
-					)
+					
+					---- creation des tablettes	----
+					_facesTablettes 	= outils.facesDuDessous		_node	_faces
+					tablette		_node	_facesTablettes					
+					
+					---- creation du cadre	---
+					cadre 	_node	_faces
+					_facesTmp = polyop.getFaceSelection  _node 	
+					
+					---- Correction de la face du cadre pour la faire sortir de la tablette ----
+					_facesDuDessous 	= outils.facesDuDessous		_node	_facesTmp
+					polyop.setFaceSelection  _node 	_facesDuDessous
+					move _node.selectedFaces [0,0, prefs.ep_tablette ]
 					
 					
-					polyop.setFaceSelection  _node 	_facesDuBas
+					---- Selection des faces pour ouvrants ----
+					polyop.setFaceSelection  _node 	_facesTmp
 					
-					---- matID  tablette	----
-					_node.EditablePoly.setMaterialIndex 		matID.tablette	 	1
+					---- Division de la baie en 2	---
+					diviser 2 	_node	_faces
 					
-					---- extrusion  tablette	----
-					_node.extrusionType 				= 0
-					_node.faceExtrudeHeight 		= prefs.ht_couvertine
-					_node.EditablePoly.buttonOp 	#Extrude
+					---- creation des fenetre	---
+					_facesFenetres =  polyop.getFaceSelection  _node 
+					cadre 	_node	_facesFenetres 
 					
-					-- listes des trucs a supprimer	(points et arretes en trop )	----
-					listeArretesAVirer 	= polyop.getEdgesUsingFace	_node	( ( polyop.getFaceSelection  _node ) as array )
-					listePointsAVirer 	= polyop.getVertsUsingFace  	_node	( ( polyop.getFaceSelection  _node ) as array )
 					
-					---- Extrusion du débord de la couvertine 	----
-					outils.etendreSelecFaces		_node		( ( polyop.getFaceSelection  _node ) as array )
-					_node.faceExtrudeHeight = prefs.ht_couvertine
-					_node.extrusionType = 1
-					_node.EditablePoly.buttonOp #Extrude
-					
-					---- Suppression des trucs (points et arretes en trop )	----
-					_node.EditablePoly.SetSelection #Edge 		listeArretesAVirer
-					_node.EditablePoly.SetSelection #Vertex 	listePointsAVirer
-					subobjectLevel = 2
-					_node.EditablePoly.Remove ()
-					subobjectLevel = 1
-					_node.EditablePoly.Remove ()
-					
-					---- Deselection des faces ----
-					subobjectLevel = 4
-					_node.EditablePoly.SetSelection #Face #{}
 					
 				) -- fin redraw off				
 				redrawViews() 	 				
 			)	-- fin undo
 			
-		),
-		
+		),		
 		fn ventDeuxAllege 	_node	_faces	= (
 			format "ventDeuxAllege\n"
 			undo "construction : 2 ventaux + allège" on (
@@ -864,6 +1011,9 @@ rollout rollConstruction "Construction" 	width:765 	height:80
 			
 		),
 		
+		
+		
+		---- BALCONS/LOGGIAS -----
 		fn balcon 	_node	_faces	= (
 			format "balcon\n"
 			undo "construction : Balcon" on (
@@ -899,29 +1049,37 @@ rollout rollConstruction "Construction" 	width:765 	height:80
 	------------------------------------------------------------
 	---- UI ---------------------------------------------------
 	------------------------------------------------------------
-	groupBox 		'grp_etage' 				"Etage" 				pos:[11,6] 		width:62 		height:67 		align:#left
-	groupBox 		'grp_toiture' 				"Toiture" 				pos:[82,6] 		width:269		height:67 		align:#left
-	groupBox 		'grp_baies' 				"Baies" 					pos:[359,6] 		width:213 	height:67 		align:#left
-	groupBox 		'grp_bacons'				"Balcons" 				pos:[583,6] 		width:146 	height:67 		align:#left
+	GroupBox 'grp_etage' "Etage" pos:[11,6] width:108 height:67 align:#left
+	GroupBox 'grp_toiture' "Toiture" pos:[127,6] width:269 height:67 align:#left
+	GroupBox 'grp_baies' "Baies" pos:[404,6] width:213 height:67 align:#left
+	GroupBox 'grp_bacons' "Balcons" pos:[628,6] width:146 height:67 align:#left
 	
-	button 			'btn_etage' 				"Etage" 				pos:[21,25] 		width:40 		height:40 		align:#left
-	button 			'btn_accrotere' 			"Accrotère" 			pos:[89,26] 		width:60 		height:40 		align:#left
-	button 			'btn_pansDeux' 			"2 pans" 				pos:[154,26] 	width:60 		height:40 		align:#left
-	button 			'btn_pansTrois' 			"3 pans" 				pos:[219,26] 	width:60 		height:40 		align:#left
-	button 			'btn_pansQuatre' 		"4 pans" 				pos:[284,26] 	width:60 		height:40 		align:#left
-	button			 	'btn_baies' 				"Bais" 					pos:[368,26] 	width:60 		height:40 		align:#left
-	button 			'btn_ventDeux' 			"2 venteaux" 		pos:[434,26] 	width:60 		height:40 		align:#left
-	button 			'btn_ventDeuxAllege' "2 vent. + allège" 	pos:[504,26] 	width:60 		height:40 		align:#left
-	button 			'btn_balcon' 				"Balcon" 				pos:[591,26] 	width:60 		height:40 		align:#left
-	button 			'btn_loggia' 				"Loggia" 				pos:[661,26] 	width:60 		height:40 		align:#left
+	button 'btn_etage' "Etage" pos:[21,25] width:40 height:40 align:#left
+	button 'btn_divParDeux' "Div. /2" pos:[67,25] width:40 height:18 align:#left
+	button 'btn_divParTrois' "Div. /3" pos:[67,46] width:40 height:18 align:#left
+	button 'btn_accrotere' "Accrotère" pos:[134,26] width:60 height:40 align:#left
+	button 'btn_pansDeux' "2 pans" pos:[199,26] width:60 height:40 align:#left
+	button 'btn_pansTrois' "3 pans" pos:[264,26] width:60 height:40 align:#left
+	button 'btn_pansQuatre' "4 pans" pos:[329,26] width:60 height:40 align:#left
+	button 'btn_baies' "Bais" pos:[413,26] width:60 height:40 align:#left
+	button 'btn_ventDeux' "2 venteaux" pos:[479,26] width:60 height:40 align:#left
+	button 'btn_ventDeuxAllege' "2 vent. + allège" pos:[549,26] width:60 height:40 align:#left
+	button 'btn_balcon' "Balcon" pos:[636,26] width:60 height:40 align:#left
+	button 'btn_loggia' "Loggia" pos:[706,26] width:60 height:40 align:#left
 	
-	GroupBox 		'grp_params' 			"Paramêtres " 		pos:[11,82] 		width:745 	height:283 	align:#left
-	checkButton 	'btn_details' 				"+" 						pos:[735,55] 	width:17 		height:17 		align:#left	
-	subRollout 		'sousRoll' 					"Paramêtres" 		pos:[24,102] 	width:720 	height:234 	align:#left
-	button 			'btn_defauts' 			"Défauts" 				pos:[23,340] 	width:86 		height:18 		align:#left
+	GroupBox 'grp_params' "Paramêtres " pos:[11,82] width:791 height:283 align:#left
+	checkbutton 'btn_details' "+" pos:[780,55] width:17 height:17 align:#left	
+	
+	subRollout 'sousRoll' "Paramêtres" pos:[24,102] width:760 height:234 align:#left
+	button 'btn_defauts' "Défauts" pos:[23,340] width:86 height:18 align:#left
 
-	Button 			'btn_tests' 				"tests" 					pos:[735,35] 	width:17 		height:17 		align:#left	
+	button 'btn_tests' "tst" pos:[780,35] width:17 height:17 align:#left	
+	
 
+	
+	
+	
+	
 	------------------------------------------------------------
 	---- Rollout secondaires ------------------------------------------
 	------------------------------------------------------------
@@ -1187,7 +1345,7 @@ rollout rollConstruction "Construction" 	width:765 	height:80
 		)
 		
 	)	-- fin Rollout 2 ventaux   --
-		
+	
 	---- Rollout 2 ventaux allege ---------------------------------------------------------------------------------------------
 	rollout rollDeuxVentauxAllege "2 ventaux avec allège" width:743 height:99 	(
 		
@@ -1215,7 +1373,7 @@ rollout rollConstruction "Construction" 	width:765 	height:80
 		)
 		
 	)	-- fin  rollDeuxVentauxAllege   --
-		
+	
 	---- Rollout Balcon ---------------------------------------------------------------------------------------------
 	rollout rollBalcons "Balcons" width:743 height:99 	(
 		
@@ -1381,6 +1539,9 @@ rollout rollConstruction "Construction" 	width:765 	height:80
 	
 	---- cliques gauche	----
 	on btn_etage 				pressed	do 	const.etage 				$	( polyop.getFaceSelection $ ) 
+	on btn_divParDeux		pressed	do 	const.diviser 		2		$	( polyop.getFaceSelection $ ) 
+	on btn_divParTrois			pressed	do 	const.diviser 		3		$	( polyop.getFaceSelection $ ) 
+	
 	on btn_accrotere 			pressed	do 	const.accrotere 			$	( polyop.getFaceSelection $ ) 
 	on btn_pansDeux 			pressed do 	const.pansDeux 		$	( polyop.getFaceSelection $ ) 
 	on btn_pansTrois 			pressed do 	const.pansTrois  		$	( polyop.getFaceSelection $ ) 

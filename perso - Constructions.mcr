@@ -4,7 +4,7 @@ toolTip:""
 (
 	
 	local estOuvert = false
-	local rollConstruction = fileIn "$userScripts\perso - Constructions.ms"
+	local rollConstruction = fileIn "$userScripts\Construction\perso - Constructions.ms"
 	
 	on execute do 	(		
 		
