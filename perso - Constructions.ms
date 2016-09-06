@@ -545,8 +545,9 @@ rollout rollConstruction "Construction" 	width:817 	height:80
 	---- la structure de construction	---------------------------------------------------------------------------------------------
 	struct constructionStruct (
 		
-	---- Les fonctions privées	----
-	private
+		---- Les fonctions privées	----
+		private
+		
 		fn	tablette		_node	_facesBase = (
 			
 			---- selection des faces	----
@@ -594,8 +595,11 @@ rollout rollConstruction "Construction" 	width:817 	height:80
 			
 		),
 		
-	---- Les fonctions publics	----
-	public
+		
+		
+		
+		---- Les fonctions publics	----
+		public
 		
 		--- NIVEAUX ----
 		fn etage 	_node	_faces	= (
@@ -1470,6 +1474,8 @@ rollout rollConstruction "Construction" 	width:817 	height:80
 	)
 	fn initialiser = (
 		
+		format "initialiser 1 : CPages_rollConstruction_estOuvert : %\n"		CPages_rollConstruction_estOuvert
+		
 		---- creation des structures ----
 		const 	= constructionStruct ()
 		outils 	= outilsStruct ()
@@ -1512,7 +1518,9 @@ rollout rollConstruction "Construction" 	width:817 	height:80
 		gc light:true
 		
 		---- update le bouton macro	----
-		estOuvert = false
+		format "FERMER 1 : CPages_rollConstruction_estOuvert : %\n"		CPages_rollConstruction_estOuvert
+		CPages_rollConstruction_estOuvert = false
+		format "FERMER 2 : CPages_rollConstruction_estOuvert : %\n"		CPages_rollConstruction_estOuvert
 		updateToolbarButtons()
 		
 	)
@@ -1528,6 +1536,10 @@ rollout rollConstruction "Construction" 	width:817 	height:80
 			)
 		)
 	)
+	fn bougerRollout pos = (
+		CPages_rollConstruction_pos = pos 
+	)
+	
 	
 	------------------------------------------------------------
 	---- Evenements -----------------------------------------
@@ -1535,6 +1547,7 @@ rollout rollConstruction "Construction" 	width:817 	height:80
 	---- rollout	----
 	on rollConstruction open  			do 	initialiser ()
 	on rollConstruction close  			do	fermer ()
+	on rollConstruction moved  pos	do	bougerRollout pos
 	
 	
 	---- cliques gauche	----
@@ -1610,7 +1623,7 @@ rollout rollConstruction "Construction" 	width:817 	height:80
 	
 )	-- fin rollout
 
-rollConstruction
+-- rollConstruction
 
 
 
