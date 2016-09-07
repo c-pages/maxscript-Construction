@@ -3,10 +3,11 @@ category:"#CPages"
 toolTip:""
 (
 	
-	global 	CPages_rollConstruction_estOuvert = false
-	global 	CPages_rollConstruction_pos	= [150,150]
+	global 	CPages_rollConstruction_estOuvert 	= false
+	global 	CPages_rollConstruction_prefs 			= false
+	global 	CPages_rollConstruction_pos				= [150,150]
 	
-	fileIn "$userScripts\Construction\perso - Constructions.ms"
+	fileIn "$userScripts\Construction\perso - Constructions - Refonte.ms"
 	
 	on execute do 	(		
 		
