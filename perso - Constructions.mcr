@@ -7,7 +7,7 @@ toolTip:""
 	global 	CPages_rollConstruction_prefs 			= false
 	global 	CPages_rollConstruction_pos				= [150,150]
 	
-	fileIn "$userScripts\Construction\perso - Constructions - Refonte.ms"
+	fileIn "$userScripts\Construction\perso - Constructions.ms"
 	
 	on execute do 	(		
 		

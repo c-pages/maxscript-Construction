@@ -48,8 +48,35 @@ struct outils_struct (
 
 
 -----------------------------------------------------
-----	Sous sélection 	-------------------------
+----	Ma,nipulations 	-------------------------
 -----------------------------------------------------
+
+---- Modél ----
+struct model_struct (
+	
+	fn preparer noeud:$ =(
+		
+		-- Convertion en EditPoly --
+		convertToPoly noeud
+		
+		-- Application de L'idMat du mur partout --
+		subobjectLevel = 4
+		polyop.setFaceSelection noeud #{1..(polyop.getNumFaces noeud)}
+		local IDmur = 1
+		noeud.EditablePoly.setMaterialIndex 		IDmur		1
+		
+		---- Appliquer un nouveau materiaux Batiment ---
+		archi.materiau.nouveau ()
+		
+		---- deselectionner les faces ----
+		polyop.setFaceSelection noeud #{}
+		
+	)
+	
+) -- fin struct Faces --
+
+
+
 ---- Faces ----
 struct faces_struct (
 	
@@ -104,47 +131,19 @@ struct faces_struct (
 						)
 					
 				)
-				format "resultTmp : %\n" resultTmp
 				if resultTmp.count == 2 do 	(
 					appendIfUnique  pointsAlignesVerticalement  resultTmp[1]
 					appendIfUnique  pointsAlignesVerticalement  resultTmp[2]
 				)
-				format "pointsAlignesVerticalement : %\n" pointsAlignesVerticalement
 				
 			)
 			
--- 			archi.outils.tableau.supprimerDoublons	  pointsAlignesVerticalement 
-			/* 
-			---- selection dans chaque groupe de points du plus haut et du plus bas	----
-			for listPts in pointsAlignesVerticalement do (
-				---- min ----
-				local minZ, maxZ
-				for ptID in listPts do (
-					if minZ == undefined do minZ = ptID
-					if maxZ == undefined do maxZ = ptID
-					
-					if noeud.verts[ ptID ].position.z > noeud.verts[ minZ ].position.z   do minZ =ptID
-					if noeud.verts[ ptID ].position.z < noeud.verts[ maxZ ].position.z  do maxZ =ptID
-					
-				)
-				append ptsResult minZ
-				append ptsResult maxZ
-			)
--- 			
--- 			sort ptsResult
--- 			format "ptsResult : % \n" ptsResult
--- 			 
-*/
 
 			ptsResult = pointsAlignesVerticalement
 			
 			archi.points.selectionner 	ptsResult
 			
-					
 			
-			
-			
-			format "		ptsResult : % \n" ptsResult
 			
 			---- suppression des couples en trop ----
 			local couplesPtsAGarder = #()
@@ -155,16 +154,12 @@ struct faces_struct (
 					local ptsAGarder =#()
 					for IDpt_2 = IDpt_1 +2 to ( ptsResult.count ) by 2 do  (
 						local dist = length ( noeud.verts[ ptsResult[IDpt_1] ].position - noeud.verts[ ptsResult[IDpt_2]  ].position ) 
-						format "		------  \n" 
-						format "		IDpt_1 : % , IDpt_2 : %\n" IDpt_1	IDpt_2
-						format "		dist : % \n" dist
 						if dist >  distMax then (
 							distMax = dist
 							ptsAGarder[1] = ptsResult[IDpt_1]
 							ptsAGarder[2] = ptsResult[IDpt_1+1]
 							ptsAGarder[3] = ptsResult[IDpt_2] 
 							ptsAGarder[4] = ptsResult[IDpt_2+1] 
-							format "		PtsAGarder : % \n" PtsAGarder
 						)
 					)
 					if ptsAGarder.count  != 0 do (
@@ -175,33 +170,32 @@ struct faces_struct (
 							distBack = length ( noeud.verts[ couplesPtsAGarder[1] ].position - noeud.verts[ couplesPtsAGarder[3]  ].position ) 
 							distNew = length ( noeud.verts[ ptsAGarder[1] ].position - noeud.verts[ ptsAGarder[3]  ].position ) 
 							
-							format "			distBack : % \n" distBack
-							format "			distNew : % \n" distNew
 							if distNew > distBack do
 								couplesPtsAGarder =  PtsAGarder
 						)
 					)
-					format "	-> couplesPtsAGarder : % \n" couplesPtsAGarder
 				)
 				
 			) 
-			format "couplesPtsAGarder : % \n" couplesPtsAGarder
 			
 			---- moyenne des points hauts et bas	----
 			result = [0,0,0]
-			if couplesPtsAGarder.count != 0 do (
+			if couplesPtsAGarder.count != 0 then (
 				for IDpt in couplesPtsAGarder do  (
 					result += noeud.verts[ IDpt ].position
-					if marquer do ptMarque = point name:(uniquename "POINT") pos:noeud.verts[ IDpt ].position
+					if marquer do ptMarque = point name:(uniquename "POINT") 	pos:noeud.verts[ IDpt ].position
 				)
 				result = result / 4
+			) else (
+				result = centre		face 	noeud:noeud  vMax:true  marquer:false 
 			)
 			
+			if result == undefined do 
+				result = face 	noeud:noeud  vMax:true  --marquer:marquer
+			
 		)
--- 		local ptMarque
+		
 		if marquer do ptMarque = point name:(uniquename "ptOrigine") pos:result
--- 		format "ptMarque.pos : % \n" ptMarque.pos
-		format "=> result : >>>  %  <<<\n" result
 		
 		result
 		
@@ -250,18 +244,31 @@ struct faces_struct (
 		result	
 	),
 	---- 	Renvois la normal de la face.  ----
-	fn normal 	face 	noeud:$   = (
-		polyop.getFaceNormal noeud face
+	fn normal 	face 	noeud:$   marquer:false  = (
+		local result = polyop.getFaceNormal noeud face
+		if marquer do (
+			ptMarque = point name:(uniquename "pt Normal" ) \
+									axistripod:on cross:off Box:off centermarker:off
+			ptMarque.transform 	= matrixfromnormal  result
+			ptMarque.pos 			= centre		face
+		)
+		result
 	),
 	---- 	Renvois l'origine de la face. ----
 	fn origine 	face 	noeud:$   marquer:false = (
+		
 		local centreFace 		= centre	face	noeud:noeud 	vMax:false
 		local largeurFace			= largeur	face	noeud:noeud
 		local normalFace 		= normal	face	noeud:noeud
 		local normalFaceRotZ	= normalFace * rotateZMatrix 90 
-		local result				= centreFace + normalFaceRotZ * ( -largeurFace/2 ) 
+		local result					= centreFace + normalFaceRotZ * ( -largeurFace/2 ) 
 		
-		if marquer do pt = point name:(uniquename "ptOrigine") pos:result
+		if marquer do (
+			pt = point 	name:( uniquename "pt Origine" ) 		\
+							axistripod:off cross:on Box:off centermarker:off
+			pt.transform = matrixfromnormal  ( normal 	face )
+			pt.pos = result
+		)
 		
 		result
 	),
@@ -334,7 +341,6 @@ struct faces_struct (
 	fn laPlusBasse	noeud:$ faces:(selection()) = (
 		local  faceBasse 
 		for face in faces do (
-			format "face : %\n" face
 			if faceBasse == undefined do faceBasse = face
 			if  ( centre 	face		noeud:noeud  ).z  < ( centre	faceBasse	noeud:noeud  ).z do
 				faceBasse = face
@@ -390,21 +396,21 @@ struct faces_struct (
 	---- Renvois les arrêtes en commun entre les faces ----
 	fn arretesCommunes	noeud:$ 	faces:(selection()) = (
 		local result = #()
-		format "faces: %\n" faces
-		for face_1 = 1 to faces.count - 1 do (
-			format "face_1: %\n" face_1
+		faces = faces as array
+		for IDface_1 = 1 to faces.count - 1 do (
+			face_1 = faces[IDface_1]
 			local arretesFace_1	=	arretes	noeud:noeud 	faces:#(face_1)
-			format "arretesFace_1: %\n" arretesFace_1
 			for arreteFace_1 in arretesFace_1 do (
-				for face_2 = face_1 to faces.count do (
-					format "face_2: %\n" face_1
+				
+				for IDface_2 = IDface_1+1 to faces.count do (
+					face_2 = faces[IDface_2]
 					local arretesFace_2	=	arretes	noeud:noeud 	faces:#(face_2)
-					format "arretesFace_2: %\n" arretesFace_2
-					if (findItem arretesFace_2  face_1 	 ) !=0  do
-						appendIfUnique  result face_1
+					if (findItem arretesFace_2  arreteFace_1 	 ) !=0  do
+						appendIfUnique  result arreteFace_1
 				)
+				
 			)
-		)
+		) 
 		result
 	),
 	---- Renvois les points constituants des faces ----
@@ -489,7 +495,7 @@ struct faces_struct (
 		
 		polyop.setFaceSelection  noeud  selectBack
 	),
-	
+	---- 	Divise verticalement les faces en ratio fois ----
 	fn diviserVerticalement	ratio		noeud:$   faces:(selection())  = (
 		
 		---- Selection des faces (deja selectionnées dans la version de base)	----
@@ -534,10 +540,28 @@ struct faces_struct (
 		---- Selection des faces 	----
 		polyop.setFaceSelection  noeud 	facesFinales
 		
+	),
+	---- 	Soude les faces mitoyennes (retire arretes et points communs)----
+	fn souder    noeud:$   faces:(selection())  = (
+		
+		local arretesASouder 		= arretesCommunes noeud:noeud 	faces:faces
+		local pointsASouder			= archi.arretes.points 	noeud:noeud 	arretes:arretesASouder
+		local subobjectLevelBAK 	= subobjectLevel
+		
+		archi.arretes.selectionner		arretesASouder
+		subobjectLevel = 2
+		noeud.EditablePoly.Remove ()
+		
+		archi.points.selectionner		pointsASouder
+		subobjectLevel = 1
+		noeud.EditablePoly.Remove ()
+		
+		subobjectLevel = subobjectLevelBAK
+		
 	)
-	
-	
-	
+
+
+
 ) -- fin struct Faces --
 
 ---- Arrêtes ----
@@ -561,10 +585,12 @@ struct arretes_struct (
 		)
 		result
 	)
+	
 ) -- fin struct arretes -----
 
 ---- Points ----
 struct points_struct (
+	
 	---- Renvois les points sélectionnées de noeud  ----
 	fn selection noeud:$ = (
 		polyop.getVertSelection   noeud	
@@ -573,6 +599,7 @@ struct points_struct (
 	fn selectionner points noeud:$ =(
 		polyop.setVertSelection   noeud  ( points as bitArray )
 	)
+	
 ) -- fin struct opints -----
 
 
@@ -585,6 +612,224 @@ struct prefs_struct (
 	fn popo  = (
 	)
 ) -- fin struct prefs -----
+
+
+
+
+-----------------------------------------------------
+----	Materiaux 	-----------------------------
+-----------------------------------------------------
+/* 
+---- La structure des Materiaux ID ----
+struct matIDStruct (
+	
+	mur 				= 1,
+	menuiseries 	= 2,
+	tablette			= 3,
+	couvertine		= 4,
+	verre  			= 5,
+	garvier			= 6,
+	terre  			= 7,
+	couverture		= 8,
+	goutiere			= 9,
+	
+	fn compte = (
+		(getPropNames this).count - 1 		---- ( moins le nbre de fonctions (1) )
+	)
+	
+)	-- fin struct matID -----
+ */
+
+--- La structure portant les parametre des materiaux ---
+struct mat_struct (
+	nom,
+	
+	diff_lvl	= .6,
+	diff_col,
+	
+	refl_lvl,
+	refl_col,
+	refl_glos,
+	refl_thin,
+	
+	refr_lvl,
+	refr_col,
+	refr_glos
+)
+
+--- La structure de gestion des materiaux ---
+struct materiaux_struct (
+	
+	---- Membres  ----------------------------
+	mats = #(), ---- porte les structures de mats ----	
+	
+	---- Fonction ----------------------------
+	--- initialise les mats ----
+	fn initialiser = (
+		
+		---- 1 ) Mur ----
+		matTmp 			= mat_struct ()
+		matTmp.nom 		= "Mur"
+		matTmp.diff_lvl 	= .6
+		matTmp.diff_col 	= color	255	255	255
+		matTmp.refl_lvl 	= .2
+		matTmp.refl_col 	= color	255	255	255
+		matTmp.refl_glos	= .3
+		matTmp.refl_thin	= true
+		matTmp.refr_lvl	= 0
+		matTmp.refr_col 	= color	255	255	255
+		matTmp.refr_glos	= 1
+		append 	mats	matTmp
+		
+		---- 2 ) Menuiseries ----
+		matTmp 			= mat_struct ()
+		matTmp.nom 		= "Menuiseries"
+		matTmp.diff_lvl 	= .6
+		matTmp.diff_col 	= color	20		20		20
+		matTmp.refl_lvl 	= .7
+		matTmp.refl_col 	= color	255	255	255
+		matTmp.refl_glos	= .7
+		matTmp.refl_thin	= true
+		matTmp.refr_lvl	= 0
+		matTmp.refr_col 	= color	255	255	255
+		matTmp.refr_glos	= .7
+		append 	mats	matTmp
+		
+		---- 3 ) Tablette ----
+		matTmp 			= mat_struct ()
+		matTmp.nom 		= "Tablette"
+		matTmp.diff_lvl 	= .6
+		matTmp.diff_col 	= color	20		20		20
+		matTmp.refl_lvl 	= .7
+		matTmp.refl_col 	= color	255	255	255
+		matTmp.refl_glos	= .7
+		matTmp.refl_thin	= true
+		matTmp.refr_lvl	= 0
+		matTmp.refr_col 	= color	255	255	255
+		matTmp.refr_glos	= .7
+		append 	mats	matTmp
+		
+		---- 4 ) Couvertine ----
+		matTmp 			= mat_struct ()
+		matTmp.nom 		= "Couvertine"
+		matTmp.diff_lvl 	= .6
+		matTmp.diff_col 	= color	20		20		20
+		matTmp.refl_lvl 	= .7
+		matTmp.refl_col 	= color	255	255	255
+		matTmp.refl_glos	= .7
+		matTmp.refl_thin	= true
+		matTmp.refr_lvl	= 0
+		matTmp.refr_col 	= color	255	255	255
+		matTmp.refr_glos	= .7
+		append 	mats	matTmp
+		
+		---- 5 ) Verre ----
+		matTmp 			= mat_struct ()
+		matTmp.nom 		= "Verre"
+		matTmp.diff_lvl 	= .0
+		matTmp.diff_col 	= color	0		0		0
+		matTmp.refl_lvl 	= 1
+		matTmp.refl_col 	= color	255	255	255
+		matTmp.refl_glos	= .7
+		matTmp.refl_thin	= true
+		matTmp.refr_lvl	= .7
+		matTmp.refr_col 	= color	255	255	255
+		matTmp.refr_glos	= 1
+		append 	mats	matTmp
+		
+		---- 6 ) Gravier ----
+		matTmp 			= mat_struct ()
+		matTmp.nom 		= "Gravier"
+		matTmp.diff_lvl 	= .6
+		matTmp.diff_col 	= color	50		50		50
+		matTmp.refl_lvl 	= .2
+		matTmp.refl_col 	= color	255	255	255
+		matTmp.refl_glos	= .3
+		matTmp.refl_thin	= true
+		matTmp.refr_lvl	= 0
+		matTmp.refr_col 	= color	255	255	255
+		matTmp.refr_glos	= 1
+		append 	mats	matTmp
+		
+		---- 7 ) Terre ----
+		matTmp 			= mat_struct ()
+		matTmp.nom 		= "Terre"
+		matTmp.diff_lvl 	= .6
+		matTmp.diff_col 	= color	80		30		30
+		matTmp.refl_lvl 	= .2
+		matTmp.refl_col 	= color	255	255	255
+		matTmp.refl_glos	= .3
+		matTmp.refl_thin	= true
+		matTmp.refr_lvl	= 0
+		matTmp.refr_col 	= color	255	255	255
+		matTmp.refr_glos	= 1
+		append 	mats	matTmp
+		
+		---- 8 ) Couverture ----
+		matTmp 			= mat_struct ()
+		matTmp.nom 		= "Couverture"
+		matTmp.diff_lvl 	= .6
+		matTmp.diff_col 	= color	100	100	150
+		matTmp.refl_lvl 	= .2
+		matTmp.refl_col 	= color	255	255	255
+		matTmp.refl_glos	= .3
+		matTmp.refl_thin	= true
+		matTmp.refr_lvl	= 0
+		matTmp.refr_col 	= color	255	255	255
+		matTmp.refr_glos	= 1
+		append 	mats	matTmp
+		
+		---- 9 ) Goutiere ----
+		matTmp 			= mat_struct ()
+		matTmp.nom 		= "Goutiere"
+		matTmp.diff_lvl 	= .6
+		matTmp.diff_col 	= color	20		20		20
+		matTmp.refl_lvl 	= .7
+		matTmp.refl_col 	= color	255	255	255
+		matTmp.refl_glos	= .7
+		matTmp.refl_thin	= true
+		matTmp.refr_lvl	= 0
+		matTmp.refr_col 	= color	255	255	255
+		matTmp.refr_glos	= .7
+		append 	mats	matTmp
+		
+	),
+	--- Renvois un nouveau multiMat ---
+	fn nouveau  noeud:$ 	= (		
+		nouveauMat = Multimaterial numsubs:( mats.count )	name:"Archi - Bâtiment"		
+		for i=1 to mats.count do	 (	
+			local mat 						= mats[i]
+			nouveauMat.names[i]		= mat.nom
+			nouveauMat.materialList[i]	= CoronaMtl 	name:("Archi - " + mat.nom)		\
+																	levelDiffuse:mat.diff_lvl				\
+																	colorDiffuse:mat.diff_col			\
+																	levelReflect:mat.refl_lvl				\
+																	colorReflect:mat.refl_col			\
+																	reflectGlossiness:mat.refl_glos	\			
+																	thin:mat.refl_thin						\
+																	levelRefract:mat.refr_lvl			\
+																	colorRefract:mat.refr_col 			\
+																	reflectGlossiness:mat.refr_glos
+		)
+		noeud.material = nouveauMat
+		nouveauMat
+	),
+	
+	
+	/* ---- Applique à neoud un nouveau materiaux ---
+	fn appliquer 	noeud:$		= (
+		local nouveauMat = nouveau ()
+		noeud.material = nouveauMat
+	), */
+	
+	
+	---- Evenements ----
+	on create do initialiser ()
+	
+	
+) -- fin struct prefs -----
+
+
 
 
 
@@ -612,30 +857,51 @@ struct creer_struct (
 
 
 -----------------------------------------------------
-----	Architecture 	-----------------------------
+----	ARCHITECTURE 	-------------------------
 -----------------------------------------------------
 struct architecture_struct (
 	
-	outils,
-	prefs,
+	------- structs -----------------------------
+	-- Outils gobaux --
+	outils,		---- Differents outils (manipulations de tableaux de tableaux ) --
+	prefs,		---- Les préferenes utilisateur --
 	
-	faces,
-	arretes,
-	points,
+	-- Materiau --
+	materiau,	---- La gestion des materiaux --
 	
-	modeler,
-	creer,
+	-- Manipulations --
+	model,		---- Manipulation du model complet --
+	faces,		---- Manipulation des faces --
+	arretes,		---- Manipulation des arretes --
+	points,		---- Manipulation des points --
 	
+	-- Modélisation --
+	modeler,		---- Outils de modélisation de base) --
+	creer,		---- Outils de modélisation des éléments architecturaux --
+	
+	
+	
+	------- fonctions -----------------------------
+	fn ouvrirRollout = (
+	),
+	fn fermerRollout = (
+	),
+	
+	
+	
+	------- evenements -----------------------------
 	on create do (
 		outils 		= outils_struct ()
+		model 		= model_struct ()
+		materiau 	= materiaux_struct ()
 		faces 		= faces_struct ()
-		arretes 	= arretes_struct ()
+		arretes 		= arretes_struct ()
 		points 		= points_struct ()
 		prefs 		= prefs_struct ()
-		modeler 	= modeler_struct ()
+		modeler 		= modeler_struct ()
 		creer 		= creer_struct ()
 	)
-)
+) -- fin struct ARCHITECTURE ----
 
 
 
